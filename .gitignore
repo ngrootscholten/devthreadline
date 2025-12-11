@@ -35,3 +35,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Threadline packages
+packages/*/node_modules
+packages/*/dist
+packages/*/.env

@@ -1,12 +1,18 @@
 {
-  "name": "devthreadline",
+  "name": "threadline",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "build:cli": "cd packages/cli && npm run build",
+    "build:server": "cd packages/server && npm run build",
+    "dev:server": "cd packages/server && npm run dev"
   },
   "dependencies": {
     "next": "^16.0.8",
