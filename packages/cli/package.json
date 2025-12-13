@@ -6,10 +6,31 @@
   "bin": {
     "threadline": "./bin/threadline"
   },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "keywords": [
+    "code-quality",
+    "linter",
+    "ai",
+    "code-review",
+    "threadline",
+    "code-standards"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ngrootscholten/threadline.git",
+    "directory": "packages/cli"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "commander": "^12.1.0",

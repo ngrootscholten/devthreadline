@@ -1,4 +1,4 @@
-import { processExpert } from './single-expert';
+import { processThreadline } from './single-expert';
 import { ExpertResult } from '../types/result';
 
 export interface ProcessThreadlinesRequest {

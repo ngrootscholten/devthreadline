@@ -88,7 +88,7 @@ All threadlines run simultaneously. Fast feedback, even with many rules.
 ### 🔍 Full Auditability
 Every check is logged. You can trace exactly what was reviewed and why.
 
-### 📦 Zero Configuration
+### 📦 Simple Configuration
 Works out of the box. Just add your threadlines and run.
 
 ### 🆓 Free to Try

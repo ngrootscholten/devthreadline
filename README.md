@@ -11,7 +11,7 @@ Threadline helps teams maintain consistent code quality by:
 - **Documentation that lives with your code** - Standards live in a `/threadlines` folder, version-controlled alongside your codebase
 - **Focused AI experts** - Each expert checks one specific concern, running in parallel
 - **Fully auditable** - Every check is logged and traceable
-- **Zero configuration** - Works out of the box, just add your experts and run
+- **Simple configuration** - Works out of the box, just add your experts and run
 
 ## Getting Started
 

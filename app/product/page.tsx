@@ -32,7 +32,7 @@ export default function Product() {
               <div className="flex-1">
                 <h3 className="text-3xl font-bold mb-4">Define Your Threadlines</h3>
                 <p className="text-lg text-slate-300 mb-6">
-                  Create a <code className="bg-slate-800 px-2 py-1 rounded text-sm">/threadlines</code> folder in your repository. Each markdown file is a threadline - a single code quality standard or convention.
+                  Create a <code className="bg-slate-800 px-2 py-1 rounded text-sm">/threadlines</code> folder in your repository. Each markdown file is a single code quality standard or convention.
                 </p>
                 <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 overflow-x-auto">
                   <div className="text-sm text-slate-400 mb-2">Example: <code className="text-slate-300">threadlines/feature-flags.md</code></div>
@@ -44,7 +44,7 @@ All feature flags must:
 - Log flag evaluations to our analytics service`}</code></pre>
                 </div>
                 <p className="text-slate-400 mt-4 italic">
-                  Your threadlines live with your code, get version-controlled, and evolve with your standards.
+                  Your threadlines live with your code, get version-controlled, and evolve with your code base.
                 </p>
               </div>
             </div>
@@ -80,7 +80,7 @@ All feature flags must:
               <div className="flex-1">
                 <h3 className="text-3xl font-bold mb-4">Get Focused Feedback</h3>
                 <p className="text-lg text-slate-300 mb-6">
-                  Run <code className="bg-slate-800 px-2 py-1 rounded text-sm">npx threadline check</code> and Threadline detects your changes and runs parallel AI checks. Each threadline analyzes your code diffs against its specific standard and returns a simple status: compliant, needs attention, or not relevant.
+                  Run <code className="bg-slate-800 px-2 py-1 rounded text-sm">npx threadline check</code> and Threadline detects your changes and then runs parallel AI checks for each markdown file, and returns a simple status: compliant, needs attention, or not relevant.
                 </p>
                 <p className="text-slate-400">
                   You only see the threadlines that require attention. No noise, just actionable feedback.
@@ -136,28 +136,9 @@ All feature flags must:
               <p className="text-slate-400">Every check is logged. Trace exactly what was reviewed and why.</p>
             </div>
             <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 hover:border-slate-600 hover:shadow-lg hover:shadow-slate-900/50 hover:-translate-y-1 transition-all duration-200">
-              <h3 className="text-xl font-semibold mb-2">Zero Configuration</h3>
+              <h3 className="text-xl font-semibold mb-2">Simple Configuration</h3>
               <p className="text-slate-400">Works out of the box. Just add your threadlines and run.</p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Getting Started Section */}
-      <section className="max-w-7xl mx-auto px-6 py-24">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-4xl font-bold mb-12 text-center">Getting Started</h2>
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 mb-6">
-            <h3 className="text-xl font-semibold mb-4">1. Run the check</h3>
-            <div className="bg-slate-950 border border-slate-800 rounded p-4 mb-4">
-              <pre className="text-green-400"><code>{`npx threadline check`}</code></pre>
-            </div>
-            <p className="text-slate-400">No installation needed. Works with any repository.</p>
-          </div>
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8">
-            <h3 className="text-xl font-semibold mb-4">2. Add your threadlines</h3>
-            <p className="text-slate-400 mb-3">Create a <code className="bg-slate-800 px-1 py-0.5 rounded text-sm">/threadlines</code> folder and add markdown files - each file is a threadline defining your coding standards.</p>
-            <p className="text-slate-400">Make a change, run the check again, and iterate until everything passes.</p>
           </div>
         </div>
       </section>
@@ -168,7 +149,7 @@ All feature flags must:
           <div className="bg-gradient-to-br from-green-950/30 to-slate-900/50 border border-green-900/30 rounded-2xl p-12">
             <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
             <p className="text-lg text-slate-300 mb-8">
-              Try Threadline with your codebase and see how focused, parallel AI reviews can improve your code quality.
+              Try Threadline with your codebase and see how focused, parallel AI checks can improve your code quality.
             </p>
             <div className="flex gap-4 justify-center flex-wrap">
               <Link

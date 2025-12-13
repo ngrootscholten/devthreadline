@@ -134,7 +134,7 @@ function displayResults(response: any) {
 
   // Show compliant items (optional, can be verbose)
   if (attentionItems.length === 0 && compliant > 0) {
-    console.log(chalk.green('✓ All experts passed!\n'));
+    console.log(chalk.green('✓ All threadlines passed!\n'));
   }
 }
 
