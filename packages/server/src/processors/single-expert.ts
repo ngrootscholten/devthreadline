@@ -26,19 +26,25 @@ export async function processThreadline(
 
   // If no files match, return not_relevant
   if (matchingFiles.length === 0) {
+    console.log(`   ⚠️  ${threadline.id}: No files matched patterns ${threadline.patterns.join(', ')}`);
+    console.log(`      Files checked: ${files.slice(0, 5).join(', ')}${files.length > 5 ? '...' : ''}`);
     return {
       expertId: threadline.id,
       status: 'not_relevant',
-      reasoning: 'No files match threadline patterns'
+      reasoning: `No files match threadline patterns: ${threadline.patterns.join(', ')}`
     };
   }
 
   // Build prompt
   const prompt = buildPrompt(threadline, diff, matchingFiles);
+  
+  console.log(`   📝 Processing ${threadline.id}: ${matchingFiles.length} matching files`);
 
   try {
+    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    console.log(`   🤖 Calling LLM (${model}) for ${threadline.id}...`);
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model,
       messages: [
         {
           role: 'system',
@@ -59,6 +65,8 @@ export async function processThreadline(
     }
 
     const parsed = JSON.parse(content);
+    
+    console.log(`   🤖 LLM response for ${threadline.id}: status=${parsed.status}, reasoning=${parsed.reasoning?.substring(0, 100)}...`);
     
     // Extract file references from line references if possible
     const fileReferences: string[] = [];
@@ -89,9 +97,11 @@ export async function processThreadline(
 
 function matchesPattern(filePath: string, pattern: string): boolean {
   // Convert glob pattern to regex
-  const regexPattern = pattern
-    .replace(/\*\*/g, '.*')
+  // Handle ** first (before single *), escape it to avoid double replacement
+  let regexPattern = pattern
+    .replace(/\*\*/g, '__DOUBLE_STAR__')
     .replace(/\*/g, '[^/]*')
+    .replace(/__DOUBLE_STAR__/g, '.*')
     .replace(/\?/g, '.');
   
   const regex = new RegExp(`^${regexPattern}$`);

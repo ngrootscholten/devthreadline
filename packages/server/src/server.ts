@@ -3,7 +3,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { threadlineCheckRoute } from './api/routes/threadline-check';
 
-dotenv.config();
+// Load .env.local first, then fall back to .env
+dotenv.config({ path: '.env.local' });
+dotenv.config(); // This will not override .env.local values
 
 const app = express();
 const PORT = process.env.PORT || 3000;

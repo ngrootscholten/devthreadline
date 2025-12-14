@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
 
-export async function checkCommand(options: { apiUrl?: string; apiKey?: string }) {
+export async function checkCommand(options: { apiUrl?: string }) {
   const repoRoot = process.cwd();
   
   console.log(chalk.blue('🔍 Threadline: Checking code against your threadlines...\n'));
@@ -55,13 +55,8 @@ export async function checkCommand(options: { apiUrl?: string; apiKey?: string }
       };
     });
 
-    // 4. Get API URL and key
+    // 4. Get API URL
     const apiUrl = options.apiUrl || process.env.THREADLINE_API_URL || 'http://localhost:3000';
-    const apiKey = options.apiKey || process.env.OPENAI_API_KEY;
-
-    if (!apiKey) {
-      throw new Error('OpenAI API key required. Set OPENAI_API_KEY environment variable.');
-    }
 
     // 5. Call review API
     console.log(chalk.gray('🤖 Running threadline checks...'));
@@ -69,8 +64,7 @@ export async function checkCommand(options: { apiUrl?: string; apiKey?: string }
     const response = await client.review({
       threadlines: threadlinesWithContext,
       diff: gitDiff.diff,
-      files: gitDiff.changedFiles,
-      apiKey
+      files: gitDiff.changedFiles
     });
 
     // 6. Display results

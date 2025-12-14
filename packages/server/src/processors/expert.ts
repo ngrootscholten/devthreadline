@@ -12,7 +12,7 @@ export interface ProcessThreadlinesRequest {
   }>;
   diff: string;
   files: string[];
-  apiKey: string;
+  apiKey: string; // Passed from server route, not from CLI
 }
 
 export interface ProcessThreadlinesResponse {
@@ -78,11 +78,9 @@ export async function processThreadlines(request: ProcessThreadlinesRequest): Pr
     }
   }
 
-  // Filter out "not_relevant" for final results
-  const filteredResults = expertResults.filter(r => r.status !== 'not_relevant');
-
+  // Return all results - CLI will handle filtering/display
   return {
-    results: filteredResults,
+    results: expertResults,
     metadata: {
       totalThreadlines: threadlines.length,
       completed,

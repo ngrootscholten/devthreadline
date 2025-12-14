@@ -21,9 +21,9 @@ threadlines check
 ```
 
 ## Configuration
-
+BANANA
 - `THREADLINE_API_URL` - Server URL (default: http://localhost:3000)
-- `OPENAI_API_KEY` - Your OpenAI API key (required)
+  - Can also be set with `--api-url` flag: `npx threadlines check --api-url http://your-server.com`
 
 ## Threadline Files
 

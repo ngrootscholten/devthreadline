@@ -20,7 +20,6 @@ program
   .command('check')
   .description('Check code against your threadlines')
   .option('--api-url <url>', 'Threadline server URL', process.env.THREADLINE_API_URL || 'http://localhost:3000')
-  .option('--api-key <key>', 'OpenAI API key', process.env.OPENAI_API_KEY)
   .action(checkCommand);
 
 program.parse();

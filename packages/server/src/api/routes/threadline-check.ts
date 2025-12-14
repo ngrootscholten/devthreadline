@@ -12,10 +12,13 @@ export interface ReviewRequest {
   }>;
   diff: string;
   files: string[];
-  apiKey: string;
 }
 
 export async function threadlineCheckRoute(req: Request, res: Response) {
+  console.log(`📥 Received request: ${req.method} ${req.path}`);
+  console.log(`   Threadlines: ${req.body?.threadlines?.length || 0}`);
+  console.log(`   Files: ${req.body?.files?.length || 0}`);
+  
   try {
     const request: ReviewRequest = req.body;
 
@@ -32,13 +35,17 @@ export async function threadlineCheckRoute(req: Request, res: Response) {
       return res.status(400).json({ error: 'files array is required' });
     }
 
-    if (!request.apiKey || typeof request.apiKey !== 'string') {
-      return res.status(400).json({ error: 'apiKey is required' });
+    // Get API key from server environment
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'Server configuration error: OPENAI_API_KEY not set' });
     }
 
     // Process threadlines
-    const result = await processThreadlines(request);
+    const result = await processThreadlines({ ...request, apiKey });
 
+    console.log(`✅ Processed: ${result.results.length} results, ${result.metadata.completed} completed, ${result.metadata.timedOut} timed out, ${result.metadata.errors} errors`);
+    
     res.json(result);
   } catch (error: any) {
     console.error('Error processing review:', error);
