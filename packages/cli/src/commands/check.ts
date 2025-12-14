@@ -17,7 +17,8 @@ export async function checkCommand(options: { apiUrl?: string; apiKey?: string }
     console.log(chalk.green(`✓ Found ${threadlines.length} threadline(s)\n`));
 
     if (threadlines.length === 0) {
-      console.log(chalk.yellow('⚠️  No valid threadlines found. Add threadline files to /threadlines folder.'));
+      console.log(chalk.yellow('⚠️  No valid threadlines found.'));
+      console.log(chalk.gray('   Run `npx threadlines init` to create your first threadline.'));
       process.exit(0);
     }
 

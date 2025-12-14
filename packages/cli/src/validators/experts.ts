@@ -9,14 +9,14 @@ export async function findThreadlines(repoRoot: string): Promise<Threadline[]> {
   const expertsDir = path.join(repoRoot, 'threadlines');
   
   if (!fs.existsSync(expertsDir)) {
-    throw new Error('No /threadlines folder found. Create a /threadlines folder with your threadline markdown files.');
+    throw new Error('No /threadlines folder found. Run `npx threadlines init` to create your first threadline.');
   }
 
   const files = fs.readdirSync(expertsDir);
   const expertFiles = files.filter(f => f.endsWith('.md'));
 
   if (expertFiles.length === 0) {
-    throw new Error('No threadline files found in /threadlines folder. Add .md files with threadline definitions.');
+    throw new Error('No threadline files found in /threadlines folder. Run `npx threadlines init` to create a template.');
   }
 
   const threadlines: Threadline[] = [];
