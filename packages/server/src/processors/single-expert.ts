@@ -40,59 +40,53 @@ export async function processThreadline(
   
   console.log(`   📝 Processing ${threadline.id}: ${matchingFiles.length} matching files`);
 
-  try {
-    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-    console.log(`   🤖 Calling LLM (${model}) for ${threadline.id}...`);
-    const response = await openai.chat.completions.create({
-      model,
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a code quality checker. Return only valid JSON, no other text.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.1
-    });
+  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  console.log(`   🤖 Calling LLM (${model}) for ${threadline.id}...`);
+  const response = await openai.chat.completions.create({
+    model,
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a code quality checker. Return only valid JSON, no other text.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 0.1
+  });
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from LLM');
-    }
-
-    const parsed = JSON.parse(content);
-    
-    console.log(`   🤖 LLM response for ${threadline.id}: status=${parsed.status}, reasoning=${parsed.reasoning?.substring(0, 100)}...`);
-    
-    // Extract file references from line references if possible
-    const fileReferences: string[] = [];
-    if (parsed.line_references && Array.isArray(parsed.line_references)) {
-      // Try to match line numbers to files (simplified - would need more sophisticated parsing)
-      matchingFiles.forEach(file => {
-        if (diff.includes(file)) {
-          fileReferences.push(file);
-        }
-      });
-    }
-
-    return {
-      expertId: threadline.id,
-      status: parsed.status || 'not_relevant',
-      reasoning: parsed.reasoning,
-      lineReferences: parsed.line_references,
-      fileReferences: fileReferences.length > 0 ? fileReferences : matchingFiles
-    };
-  } catch (error: any) {
-    return {
-      expertId: threadline.id,
-      status: 'not_relevant',
-      reasoning: `Error processing expert: ${error.message}`
-    };
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error('No response from LLM');
   }
+
+  console.log(`   📄 Raw LLM response: ${content.substring(0, 200)}...`);
+  
+  const parsed = JSON.parse(content);
+  
+  console.log(`   ✅ Parsed: status=${parsed.status}, reasoning=${parsed.reasoning?.substring(0, 100)}...`);
+  
+  // Extract file references from line references if possible
+  const fileReferences: string[] = [];
+  if (parsed.line_references && Array.isArray(parsed.line_references)) {
+    // Try to match line numbers to files (simplified - would need more sophisticated parsing)
+    matchingFiles.forEach(file => {
+      if (diff.includes(file)) {
+        fileReferences.push(file);
+      }
+    });
+  }
+
+  return {
+    expertId: threadline.id,
+    status: parsed.status || 'not_relevant',
+    reasoning: parsed.reasoning,
+    lineReferences: parsed.line_references,
+    fileReferences: fileReferences.length > 0 ? fileReferences : matchingFiles
+  };
 }
 
 function matchesPattern(filePath: string, pattern: string): boolean {

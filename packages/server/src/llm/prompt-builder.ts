@@ -20,14 +20,18 @@ export function buildPrompt(
   prompt += `Code Changes:\n${diff}\n\n`;
   prompt += `Changed Files:\n${matchingFiles.join('\n')}\n\n`;
 
-  prompt += `Review the code changes against the threadline guidelines above.\n`;
+  prompt += `Review the code changes against the threadline guidelines above.\n\n`;
   prompt += `Return JSON only with this exact structure:\n`;
   prompt += `{\n`;
   prompt += `  "status": "compliant" | "attention" | "not_relevant",\n`;
   prompt += `  "reasoning": "brief explanation",\n`;
   prompt += `  "line_references": [line numbers if attention needed]\n`;
-  prompt += `}\n`;
-
+  prompt += `}\n\n`;
+  prompt += `Status meanings:\n`;
+  prompt += `- "compliant": Code follows the guidelines, no issues found\n`;
+  prompt += `- "attention": Code violates the guidelines, needs to be fixed\n`;
+  prompt += `- "not_relevant": This threadline doesn't apply to these files/changes (e.g., wrong file type, no matching code patterns)\n`;
+  
   return prompt;
 }
 

@@ -48,8 +48,12 @@ export async function threadlineCheckRoute(req: Request, res: Response) {
     
     res.json(result);
   } catch (error: any) {
-    console.error('Error processing review:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('❌ ERROR processing threadline-check:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      error: error.message || 'Internal server error',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 }
 
