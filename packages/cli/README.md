@@ -2,6 +2,26 @@
 
 Threadline CLI - AI-powered linter based on your natural language documentation.
 
+## Why Threadline?
+
+Getting teams to follow consistent quality standards is **hard**. Really hard.
+
+- **Documentation** → Nobody reads it. Or it's outdated before you finish writing it.
+- **Linting** → Catches syntax errors, but misses nuanced stuff.
+- **AI Code Reviewers** → Powerful, but you can't trust them. Did they actually check what you care about? Can you customize them with your team's specific rules?
+
+**Threadline solves this** by running **separate, parallel, highly focused AI-powered reviews** - each focused on a single, specific concern. Your coding standards live in your repository as markdown files, version-controlled and always in sync with your codebase. Each threadline gets its own dedicated AI check, ensuring focused attention on what matters to your team.
+
+### What Makes Threadline Different?
+
+- **🎯 Focused Reviews** - Instead of one AI trying to check everything, Threadline runs multiple specialized AI reviewers in parallel. Each threadline focuses on one thing and does it well.
+
+- **📝 Documentation That Lives With Your Code** - Your coding standards live in your repo, in a `/threadlines` folder. They're version-controlled, reviewable, and always in sync with your codebase.
+
+- **🔍 Fully Auditable** - Every AI review decision is logged and traceable. You can see exactly what was checked, why it passed or failed, and have confidence in the results.
+
+- **⚡ Fast & Parallel** - Multiple threadlines run simultaneously, so you get comprehensive feedback in seconds, not minutes.
+
 ## Installation
 
 ```bash
