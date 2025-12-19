@@ -21,17 +21,17 @@ export default function RootLayout({
               <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-white to-green-400 bg-clip-text text-transparent">
                 Threadline
               </Link>
-              <div className="flex gap-6">
-                <Link href="/" className="text-slate-300 hover:text-white transition-colors">
-                  Vision
-                </Link>
-                <Link href="/product" className="text-slate-300 hover:text-white transition-colors">
-                  How It Works
-                </Link>
-                <Link href="/plan" className="text-slate-300 hover:text-white transition-colors">
-                  Implementation Plan
-                </Link>
-              </div>
+                    <div className="flex gap-6">
+                      <Link href="/" className="text-slate-300 hover:text-white transition-colors">
+                        Vision
+                      </Link>
+                      <Link href="/product" className="text-slate-300 hover:text-white transition-colors">
+                        How It Works
+                      </Link>
+                      <Link href="/docs/getting-started" className="text-slate-300 hover:text-white transition-colors">
+                        Documentation
+                      </Link>
+                    </div>
             </div>
           </div>
         </nav>

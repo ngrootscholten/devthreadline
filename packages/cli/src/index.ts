@@ -31,6 +31,12 @@ program
   .command('check')
   .description('Check code against your threadlines')
   .option('--api-url <url>', 'Threadline server URL', process.env.THREADLINE_API_URL || 'http://localhost:3000')
+  .option('--full', 'Show all results (compliant, attention, not_relevant). Default: only attention items')
+  .option('--branch <name>', 'Review all commits in branch vs base')
+  .option('--commit <sha>', 'Review specific commit')
+  .option('--file <path>', 'Review entire file (all lines as additions)')
+  .option('--folder <path>', 'Review all files in folder recursively')
+  .option('--files <paths...>', 'Review multiple specified files')
   .action(checkCommand);
 
 program.parse();

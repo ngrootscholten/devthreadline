@@ -5,6 +5,9 @@ export interface GitDiffResult {
   changedFiles: string[];
 }
 
+/**
+ * Get diff for staged/unstaged changes (current behavior)
+ */
 export async function getGitDiff(repoRoot: string): Promise<GitDiffResult> {
   const git: SimpleGit = simpleGit(repoRoot);
 
@@ -36,6 +39,151 @@ export async function getGitDiff(repoRoot: string): Promise<GitDiffResult> {
   const changedFiles = status.files
     .filter(f => f.working_dir !== ' ' || f.index !== ' ')
     .map(f => f.path);
+
+  return {
+    diff: diff || '',
+    changedFiles
+  };
+}
+
+/**
+ * Get diff for a specific branch (all commits vs base branch)
+ * Uses git merge-base to find common ancestor, then diffs from there
+ */
+export async function getBranchDiff(
+  repoRoot: string,
+  branchName: string,
+  baseBranch?: string
+): Promise<GitDiffResult> {
+  const git: SimpleGit = simpleGit(repoRoot);
+
+  // Check if we're in a git repo
+  const isRepo = await git.checkIsRepo();
+  if (!isRepo) {
+    throw new Error('Not a git repository. Threadline requires a git repository.');
+  }
+
+  // Determine base branch
+  let base: string;
+  
+  if (baseBranch) {
+    // Use provided base branch
+    base = baseBranch;
+  } else {
+    // Try to detect base branch: upstream, default branch, or common names
+    base = await detectBaseBranch(git, branchName);
+  }
+  
+  // Helper function to detect base branch
+  async function detectBaseBranch(git: SimpleGit, branchName: string): Promise<string> {
+    // Try upstream tracking branch
+    const upstream = await git.revparse(['--abbrev-ref', '--symbolic-full-name', `${branchName}@{u}`]).catch(() => null);
+    if (upstream) {
+      // Extract base from upstream (e.g., "origin/main" -> "main")
+      return upstream.replace(/^origin\//, '');
+    }
+    
+    // Try default branch
+    try {
+      const defaultBranch = await git.revparse(['--abbrev-ref', 'refs/remotes/origin/HEAD']);
+      return defaultBranch.replace(/^origin\//, '');
+    } catch {
+      // Fallback to common names
+      const commonBases = ['main', 'master', 'develop'];
+      for (const candidate of commonBases) {
+        try {
+          await git.revparse([`origin/${candidate}`]);
+          return candidate;
+        } catch {
+          // Try next
+        }
+      }
+      throw new Error(`Could not determine base branch. Please specify with --base flag or set upstream tracking.`);
+    }
+  }
+
+  // Get diff between base and branch (cumulative diff of all commits)
+  // Format: git diff base...branch (three-dot notation finds common ancestor)
+  const diff = await git.diff([`${base}...${branchName}`]);
+  
+  // Get list of changed files
+  const diffSummary = await git.diffSummary([`${base}...${branchName}`]);
+  const changedFiles = diffSummary.files.map(f => f.file);
+
+  return {
+    diff: diff || '',
+    changedFiles
+  };
+}
+
+/**
+ * Get diff for a specific commit
+ */
+export async function getCommitDiff(repoRoot: string, sha: string): Promise<GitDiffResult> {
+  const git: SimpleGit = simpleGit(repoRoot);
+
+  // Check if we're in a git repo
+  const isRepo = await git.checkIsRepo();
+  if (!isRepo) {
+    throw new Error('Not a git repository. Threadline requires a git repository.');
+  }
+
+  // Get diff for the commit
+  // Use git show to get the commit diff
+  let diff: string;
+  let changedFiles: string[];
+  
+  try {
+    // Get diff using git show
+    diff = await git.show([sha, '--format=', '--no-color']);
+    
+    // Get changed files using git show --name-only
+    const commitFiles = await git.show([sha, '--name-only', '--format=', '--pretty=format:']);
+    changedFiles = commitFiles
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .map(line => line.trim());
+  } catch (error: any) {
+    // Fallback: try git diff format
+    try {
+      diff = await git.diff([`${sha}^..${sha}`]);
+      // Get files from diff summary
+      const diffSummary = await git.diffSummary([`${sha}^..${sha}`]);
+      changedFiles = diffSummary.files.map(f => f.file);
+    } catch (diffError: any) {
+      throw new Error(`Commit ${sha} not found or invalid: ${error.message || diffError.message}`);
+    }
+  }
+
+  return {
+    diff: diff || '',
+    changedFiles
+  };
+}
+
+/**
+ * Get diff for PR/MR (source branch vs target branch)
+ */
+export async function getPRMRDiff(
+  repoRoot: string,
+  sourceBranch: string,
+  targetBranch: string
+): Promise<GitDiffResult> {
+  const git: SimpleGit = simpleGit(repoRoot);
+
+  // Check if we're in a git repo
+  const isRepo = await git.checkIsRepo();
+  if (!isRepo) {
+    throw new Error('Not a git repository. Threadline requires a git repository.');
+  }
+
+  // Get diff between target and source (cumulative diff)
+  // Format: git diff target...source (three-dot notation finds common ancestor)
+  const diff = await git.diff([`${targetBranch}...${sourceBranch}`]);
+  
+  // Get list of changed files
+  const diffSummary = await git.diffSummary([`${targetBranch}...${sourceBranch}`]);
+  const changedFiles = diffSummary.files.map(f => f.file);
 
   return {
     diff: diff || '',

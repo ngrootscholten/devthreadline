@@ -1,12 +1,23 @@
 import { findThreadlines } from '../validators/experts';
-import { getGitDiff } from '../git/diff';
+import { getGitDiff, getBranchDiff, getCommitDiff, getPRMRDiff } from '../git/diff';
+import { getFileContent, getFolderContent, getMultipleFilesContent } from '../git/file';
+import { getRepoName, getBranchName } from '../git/repo';
+import { getAutoReviewTarget } from '../utils/ci-detection';
 import { ReviewAPIClient, ExpertResult } from '../api/client';
-import { getThreadlineApiKey } from '../utils/config';
+import { getThreadlineApiKey, getThreadlineAccount } from '../utils/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
 
-export async function checkCommand(options: { apiUrl?: string }) {
+export async function checkCommand(options: { 
+  apiUrl?: string; 
+  full?: boolean;
+  branch?: string;
+  commit?: string;
+  file?: string;
+  folder?: string;
+  files?: string[];
+}) {
   const repoRoot = process.cwd();
   
   console.log(chalk.blue('🔍 Threadline: Checking code against your threadlines...\n'));
@@ -25,6 +36,20 @@ export async function checkCommand(options: { apiUrl?: string }) {
     process.exit(1);
   }
 
+  // Get and validate account key
+  const account = getThreadlineAccount();
+  if (!account) {
+    console.error(chalk.red('❌ Error: THREADLINE_ACCOUNT is required'));
+    console.log('');
+    console.log(chalk.yellow('To fix this:'));
+    console.log(chalk.white('  1. Create a .env.local file in your project root'));
+    console.log(chalk.gray('  2. Add: THREADLINE_ACCOUNT=your-email@example.com'));
+    console.log(chalk.gray('  3. Make sure .env.local is in your .gitignore'));
+    console.log('');
+    console.log(chalk.gray('For CI/CD: Set THREADLINE_ACCOUNT as an environment variable in your platform settings.'));
+    process.exit(1);
+  }
+
   try {
     // 1. Find and validate threadlines
     console.log(chalk.gray('📋 Finding threadlines...'));
@@ -37,9 +62,70 @@ export async function checkCommand(options: { apiUrl?: string }) {
       process.exit(0);
     }
 
-    // 2. Get git diff
-    console.log(chalk.gray('📝 Collecting git changes...'));
-    const gitDiff = await getGitDiff(repoRoot);
+    // 2. Determine review target and get git diff
+    let gitDiff: { diff: string; changedFiles: string[] };
+    let reviewContext: { type: string; value?: string } = { type: 'local' };
+    
+    // Validate mutually exclusive flags
+    const explicitFlags = [options.branch, options.commit, options.file, options.folder, options.files].filter(Boolean);
+    if (explicitFlags.length > 1) {
+      console.error(chalk.red('❌ Error: Only one review option can be specified at a time'));
+      console.log(chalk.gray('   Options: --branch, --commit, --file, --folder, --files'));
+      process.exit(1);
+    }
+    
+    // Check for explicit flags first (override auto-detection)
+    if (options.file) {
+      console.log(chalk.gray(`📝 Reading file: ${options.file}...`));
+      gitDiff = await getFileContent(repoRoot, options.file);
+      reviewContext = { type: 'file', value: options.file };
+    } else if (options.folder) {
+      console.log(chalk.gray(`📝 Reading folder: ${options.folder}...`));
+      gitDiff = await getFolderContent(repoRoot, options.folder);
+      reviewContext = { type: 'folder', value: options.folder };
+    } else if (options.files && options.files.length > 0) {
+      console.log(chalk.gray(`📝 Reading ${options.files.length} file(s)...`));
+      gitDiff = await getMultipleFilesContent(repoRoot, options.files);
+      reviewContext = { type: 'files', value: options.files.join(', ') };
+    } else if (options.branch) {
+      console.log(chalk.gray(`📝 Collecting git changes for branch: ${options.branch}...`));
+      gitDiff = await getBranchDiff(repoRoot, options.branch);
+      reviewContext = { type: 'branch', value: options.branch };
+    } else if (options.commit) {
+      console.log(chalk.gray(`📝 Collecting git changes for commit: ${options.commit}...`));
+      gitDiff = await getCommitDiff(repoRoot, options.commit);
+      reviewContext = { type: 'commit', value: options.commit };
+    } else {
+      // Auto-detect CI environment or use local changes
+      const autoTarget = getAutoReviewTarget();
+      
+      if (autoTarget) {
+        if (autoTarget.type === 'pr' || autoTarget.type === 'mr') {
+          // PR/MR: use source and target branches
+          console.log(chalk.gray(`📝 Collecting git changes for ${autoTarget.type.toUpperCase()}: ${autoTarget.value}...`));
+          gitDiff = await getPRMRDiff(repoRoot, autoTarget.sourceBranch!, autoTarget.targetBranch!);
+          reviewContext = { type: autoTarget.type, value: autoTarget.value };
+        } else if (autoTarget.type === 'branch') {
+          // Branch: use branch vs base
+          console.log(chalk.gray(`📝 Collecting git changes for branch: ${autoTarget.value}...`));
+          gitDiff = await getBranchDiff(repoRoot, autoTarget.value!);
+          reviewContext = { type: 'branch', value: autoTarget.value };
+        } else if (autoTarget.type === 'commit') {
+          // Commit: use single commit
+          console.log(chalk.gray(`📝 Collecting git changes for commit: ${autoTarget.value}...`));
+          gitDiff = await getCommitDiff(repoRoot, autoTarget.value!);
+          reviewContext = { type: 'commit', value: autoTarget.value };
+        } else {
+          // Fallback: local development
+          console.log(chalk.gray('📝 Collecting git changes...'));
+          gitDiff = await getGitDiff(repoRoot);
+        }
+      } else {
+        // Local development: use staged/unstaged changes
+        console.log(chalk.gray('📝 Collecting git changes...'));
+        gitDiff = await getGitDiff(repoRoot);
+      }
+    }
     
     if (gitDiff.changedFiles.length === 0) {
       console.log(chalk.yellow('⚠️  No changes detected. Make some code changes and try again.'));
@@ -83,21 +169,28 @@ export async function checkCommand(options: { apiUrl?: string }) {
       };
     });
 
-    // 4. Get API URL
+    // 4. Get repo name and branch name
+    const repoName = await getRepoName(repoRoot);
+    const branchName = await getBranchName(repoRoot);
+
+    // 5. Get API URL
     const apiUrl = options.apiUrl || process.env.THREADLINE_API_URL || 'http://localhost:3000';
 
-    // 5. Call review API
+    // 6. Call review API
     console.log(chalk.gray('🤖 Running threadline checks...'));
     const client = new ReviewAPIClient(apiUrl);
     const response = await client.review({
       threadlines: threadlinesWithContext,
       diff: gitDiff.diff,
       files: gitDiff.changedFiles,
-      apiKey
+      apiKey,
+      account,
+      repoName: repoName || undefined,
+      branchName: branchName || undefined
     });
 
-    // 6. Display results
-    displayResults(response);
+    // 7. Display results (with filtering if --full not specified)
+    displayResults(response, options.full || false);
 
     // Exit with appropriate code
     const hasAttention = response.results.some(r => r.status === 'attention');
@@ -109,8 +202,13 @@ export async function checkCommand(options: { apiUrl?: string }) {
   }
 }
 
-function displayResults(response: any) {
+function displayResults(response: any, showFull: boolean) {
   const { results, metadata, message } = response;
+
+  // Filter results based on --full flag
+  const filteredResults = showFull 
+    ? results 
+    : results.filter((r: ExpertResult) => r.status === 'attention');
 
   // Display informational message if present (e.g., zero diffs)
   if (message) {
@@ -124,14 +222,22 @@ function displayResults(response: any) {
   const compliant = results.filter((r: ExpertResult) => r.status === 'compliant').length;
   const attention = results.filter((r: ExpertResult) => r.status === 'attention').length;
 
-  if (notRelevant > 0) {
-    console.log(chalk.gray(`  ${notRelevant} not relevant`));
-  }
-  if (compliant > 0) {
-    console.log(chalk.green(`  ${compliant} compliant`));
-  }
-  if (attention > 0) {
-    console.log(chalk.yellow(`  ${attention} attention`));
+  if (showFull) {
+    // Show all results when --full flag is used
+    if (notRelevant > 0) {
+      console.log(chalk.gray(`  ${notRelevant} not relevant`));
+    }
+    if (compliant > 0) {
+      console.log(chalk.green(`  ${compliant} compliant`));
+    }
+    if (attention > 0) {
+      console.log(chalk.yellow(`  ${attention} attention`));
+    }
+  } else {
+    // Default: only show attention items
+    if (attention > 0) {
+      console.log(chalk.yellow(`  ${attention} attention`));
+    }
   }
 
   if (metadata.timedOut > 0) {
@@ -144,7 +250,7 @@ function displayResults(response: any) {
   console.log('');
 
   // Show attention items
-  const attentionItems = results.filter((r: ExpertResult) => r.status === 'attention');
+  const attentionItems = filteredResults.filter((r: ExpertResult) => r.status === 'attention');
   if (attentionItems.length > 0) {
     for (const item of attentionItems) {
       console.log(chalk.yellow(`⚠️  ${item.expertId}`));
@@ -161,8 +267,14 @@ function displayResults(response: any) {
     console.log('');
   }
 
-  // Show compliant items (optional, can be verbose)
-  if (attentionItems.length === 0 && compliant > 0) {
+  // Show compliant items (only when --full flag is used)
+  if (showFull) {
+    const compliantItems = filteredResults.filter((r: ExpertResult) => r.status === 'compliant');
+    if (compliantItems.length > 0 && attentionItems.length === 0) {
+      console.log(chalk.green('✓ All threadlines passed!\n'));
+    }
+  } else if (attentionItems.length === 0 && compliant > 0) {
+    // Default: show success message if no attention items
     console.log(chalk.green('✓ All threadlines passed!\n'));
   }
 }

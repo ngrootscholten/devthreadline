@@ -27,3 +27,15 @@ export function getThreadlineApiKey(): string | undefined {
   return process.env.THREADLINE_API_KEY;
 }
 
+/**
+ * Gets THREADLINE_ACCOUNT from environment.
+ * Priority: process.env.THREADLINE_ACCOUNT → .env.local file
+ */
+export function getThreadlineAccount(): string | undefined {
+  // Load .env.local if it exists (doesn't override existing env vars)
+  loadEnvLocal();
+  
+  // Check environment variable (from shell or CI/CD)
+  return process.env.THREADLINE_ACCOUNT;
+}
+

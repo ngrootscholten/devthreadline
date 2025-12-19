@@ -13,6 +13,9 @@ export interface ReviewRequest {
   diff: string;
   files: string[];
   apiKey: string; // Client's Threadline API key for authentication
+  account: string;        // REQUIRED: Account identifier
+  repoName?: string;     // NEW: Repository name (e.g., "user/repo")
+  branchName?: string;   // NEW: Branch name (e.g., "feature/x")
 }
 
 function countLinesInDiff(diff: string): { added: number; removed: number; total: number } {
@@ -89,6 +92,15 @@ export async function POST(req: NextRequest) {
       console.log(`     - Files: ${contextStats.files.map(f => `${f.path} (${f.lines} lines)`).join(', ')}`);
     }
     console.log(`   Threadlines: ${request.threadlines?.length || 0}`);
+    if (request.account) {
+      console.log(`   Account: ${request.account}`);
+    }
+    if (request.repoName) {
+      console.log(`   Repository: ${request.repoName}`);
+    }
+    if (request.branchName) {
+      console.log(`   Branch: ${request.branchName}`);
+    }
 
     // Validate request
     if (!request.threadlines || !Array.isArray(request.threadlines) || request.threadlines.length === 0) {
@@ -137,6 +149,14 @@ export async function POST(req: NextRequest) {
     if (!request.apiKey || typeof request.apiKey !== 'string') {
       return NextResponse.json(
         { error: 'apiKey is required in request body' },
+        { status: 400 }
+      );
+    }
+
+    // Validate account (required)
+    if (!request.account || typeof request.account !== 'string') {
+      return NextResponse.json(
+        { error: 'account is required in request body' },
         { status: 400 }
       );
     }

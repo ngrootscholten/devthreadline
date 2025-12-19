@@ -12,6 +12,9 @@ export interface ReviewRequest {
   diff: string;
   files: string[];
   apiKey: string;
+  account: string;        // REQUIRED: Account identifier
+  repoName?: string;     // NEW: Repository name (e.g., "user/repo")
+  branchName?: string;   // NEW: Branch name (e.g., "feature/x")
 }
 
 export interface ExpertResult {
