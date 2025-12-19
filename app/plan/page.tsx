@@ -4,7 +4,7 @@ import { join } from 'path';
 
 export default async function Plan() {
   const planContent = readFileSync(
-    join(process.cwd(), 'docs', 'TECHNICAL_PLAN.md'),
+    join(process.cwd(), 'docs', 'CLI_IMPLEMENTATION_PLAN.md'),
     'utf-8'
   );
 

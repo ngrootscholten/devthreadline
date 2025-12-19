@@ -29,7 +29,7 @@ export default function RootLayout({
                   How It Works
                 </Link>
                 <Link href="/plan" className="text-slate-300 hover:text-white transition-colors">
-                  Technical Plan
+                  Implementation Plan
                 </Link>
               </div>
             </div>
