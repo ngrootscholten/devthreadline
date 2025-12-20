@@ -70,6 +70,35 @@ export async function getBranchDiff(
     // Use provided base branch
     base = baseBranch;
   } else {
+    // Check if the branch itself is a base branch (main/master)
+    const baseBranchNames = ['main', 'master'];
+    const isBaseBranch = baseBranchNames.includes(branchName.toLowerCase());
+    
+    if (isBaseBranch) {
+      // For main/master branch, compare against previous commit (HEAD~1)
+      // This checks what changed in the most recent commit
+      try {
+        const previousCommit = await git.revparse(['HEAD~1']).catch(() => null);
+        if (previousCommit) {
+          // Use commit-based diff instead
+          const diff = await git.diff([`${previousCommit}..HEAD`]);
+          const diffSummary = await git.diffSummary([`${previousCommit}..HEAD`]);
+          const changedFiles = diffSummary.files.map(f => f.file);
+          
+          return {
+            diff: diff || '',
+            changedFiles
+          };
+        }
+      } catch {
+        // If no previous commit, return empty (first commit)
+        return {
+          diff: '',
+          changedFiles: []
+        };
+      }
+    }
+    
     // Try to detect base branch: upstream, default branch, or common names
     base = await detectBaseBranch(git, branchName);
   }
@@ -80,26 +109,39 @@ export async function getBranchDiff(
     const upstream = await git.revparse(['--abbrev-ref', '--symbolic-full-name', `${branchName}@{u}`]).catch(() => null);
     if (upstream) {
       // Extract base from upstream (e.g., "origin/main" -> "main")
-      return upstream.replace(/^origin\//, '');
+      const upstreamBranch = upstream.replace(/^origin\//, '');
+      // Don't use the branch itself as its base
+      if (upstreamBranch !== branchName) {
+        return upstreamBranch;
+      }
     }
     
     // Try default branch
     try {
       const defaultBranch = await git.revparse(['--abbrev-ref', 'refs/remotes/origin/HEAD']);
-      return defaultBranch.replace(/^origin\//, '');
-    } catch {
-      // Fallback to common names
-      const commonBases = ['main', 'master', 'develop'];
-      for (const candidate of commonBases) {
-        try {
-          await git.revparse([`origin/${candidate}`]);
-          return candidate;
-        } catch {
-          // Try next
-        }
+      const defaultBranchName = defaultBranch.replace(/^origin\//, '');
+      // Don't use the branch itself as its base
+      if (defaultBranchName !== branchName) {
+        return defaultBranchName;
       }
-      throw new Error(`Could not determine base branch. Please specify with --base flag or set upstream tracking.`);
+    } catch {
+      // Continue to fallback
     }
+    
+    // Fallback to common names (excluding the branch itself)
+    const commonBases = ['main', 'master', 'develop'];
+    for (const candidate of commonBases) {
+      if (candidate.toLowerCase() === branchName.toLowerCase()) {
+        continue; // Skip if it's the same branch
+      }
+      try {
+        await git.revparse([`origin/${candidate}`]);
+        return candidate;
+      } catch {
+        // Try next
+      }
+    }
+    throw new Error(`Could not determine base branch for '${branchName}'. Please specify with --base flag or set upstream tracking.`);
   }
 
   // Get diff between base and branch (cumulative diff of all commits)

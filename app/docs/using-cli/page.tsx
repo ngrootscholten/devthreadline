@@ -9,6 +9,9 @@ export default function UsingCLI() {
           <code>threadlines check</code>
         </pre>
         <p className="text-slate-300 mb-4">
+          <strong className="text-white">Using npx?</strong> For non-interactive environments (CI/CD, AI assistants), use: <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm text-green-400">npx --yes threadlines check</code>
+        </p>
+        <p className="text-slate-300 mb-4">
           By default, Threadline auto-detects your environment:
         </p>
         <ul className="list-disc list-inside mb-4 text-slate-300 space-y-2 ml-4">

@@ -17,8 +17,10 @@ Threadline helps teams maintain consistent code quality by:
 
 1. **Run the check**
    ```bash
-   npx threadline check
+   npx --yes threadlines check
    ```
+   
+   **Note:** Use `--yes` flag for AI assistants (Cursor, GitHub Copilot) and CI/CD to avoid confirmation prompts.
 
 2. **Add your threadlines**
    Create a `/threadlines` folder in your repository and add markdown files defining your coding standards.

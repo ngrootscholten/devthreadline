@@ -5,16 +5,26 @@ export default function GettingStarted() {
 
       <section className="mb-12">
         <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Installation</h2>
-        <p className="text-slate-300 mb-4">
-          Install Threadline globally or use with npx:
-        </p>
+        
+        <h3 className="text-xl font-semibold mt-6 mb-3 text-slate-300">Option 1: Global Installation</h3>
         <pre className="bg-slate-950 border border-slate-800 rounded-lg p-4 overflow-x-auto text-sm text-slate-300 mb-4">
           <code>npm install -g threadlines</code>
         </pre>
-        <p className="text-slate-300 mb-4">Or use directly without installation:</p>
+        <p className="text-slate-300 mb-4">Then use directly: <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm text-green-400">threadlines check</code></p>
+
+        <h3 className="text-xl font-semibold mt-6 mb-3 text-slate-300">Option 2: Use with npx</h3>
         <pre className="bg-slate-950 border border-slate-800 rounded-lg p-4 overflow-x-auto text-sm text-slate-300 mb-4">
           <code>npx threadlines check</code>
         </pre>
+        <p className="text-slate-300 mb-4">
+          <strong className="text-white">For AI assistants (Cursor, GitHub Copilot):</strong> Use <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm text-green-400">npx --yes threadlines check</code> to avoid confirmation prompts.
+        </p>
+
+        <h3 className="text-xl font-semibold mt-6 mb-3 text-slate-300">Option 3: Project Dependency</h3>
+        <pre className="bg-slate-950 border border-slate-800 rounded-lg p-4 overflow-x-auto text-sm text-slate-300 mb-4">
+          <code>npm install --save-dev threadlines</code>
+        </pre>
+        <p className="text-slate-300 mb-4">Ensures consistent version across your team.</p>
       </section>
 
       <section className="mb-12">

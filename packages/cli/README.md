@@ -24,15 +24,42 @@ Getting teams to follow consistent quality standards is **hard**. Really hard.
 
 ## Installation
 
+### Option 1: Global Installation (Recommended for Regular Use)
+
 ```bash
 npm install -g threadlines
 ```
 
-Or use with npx:
+Then use directly:
+```bash
+threadlines check
+```
+
+### Option 2: Use with npx (No Installation)
 
 ```bash
 npx threadlines check
 ```
+
+**For non-interactive environments** (CI/CD, AI assistants like Cursor):
+```bash
+npx --yes threadlines check
+```
+
+The `--yes` flag auto-confirms package installation, preventing prompts that block automation.
+
+### Option 3: Local Project Dependency (Recommended for Teams)
+
+```bash
+npm install --save-dev threadlines
+```
+
+Then use:
+```bash
+npx threadlines check
+```
+
+This ensures everyone on your team uses the same version.
 
 ## Quick Start
 
@@ -88,10 +115,50 @@ Creates a template threadline file to get you started. The command will:
 threadlines check
 ```
 
-Analyzes your git changes against all threadlines in the `/threadlines` directory.
+By default, analyzes your staged/unstaged git changes against all threadlines in the `/threadlines` directory.
+
+**Common Use Cases:**
+
+**Check latest commit locally:**
+```bash
+threadlines check --commit HEAD
+```
+
+**Check a specific commit:**
+```bash
+threadlines check --commit abc123def
+```
+
+**Check all commits in a branch:**
+```bash
+threadlines check --branch feature/new-feature
+```
+
+**Check entire file(s):**
+```bash
+threadlines check --file src/api/users.ts
+threadlines check --files src/api/users.ts src/api/posts.ts
+threadlines check --folder src/api
+```
+
+**Show all results (not just violations):**
+```bash
+threadlines check --full
+```
 
 **Options:**
 - `--api-url <url>` - Override the server URL (default: http://localhost:3000)
+- `--commit <ref>` - Review specific commit. Accepts commit SHA or git reference (e.g., `HEAD`, `HEAD~1`, `abc123`)
+- `--branch <name>` - Review all commits in branch vs base
+- `--file <path>` - Review entire file (all lines as additions)
+- `--folder <path>` - Review all files in folder recursively
+- `--files <paths...>` - Review multiple specified files
+- `--full` - Show all results (compliant, attention, not_relevant). Default: only attention items
+
+**Auto-detection in CI:**
+- CI with branch detected → reviews all commits in branch vs base
+- CI with commit SHA detected → reviews specific commit
+- Local development → reviews staged/unstaged changes
 
 ## Configuration
 

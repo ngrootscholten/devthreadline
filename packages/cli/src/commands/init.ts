@@ -72,6 +72,7 @@ export async function initCommand() {
     console.log(chalk.white('   Make sure .env.local is in your .gitignore file!'));
     console.log('');
     console.log(chalk.gray('  3. Run: npx threadlines check'));
+    console.log(chalk.gray('     (Use npx --yes threadlines check in non-interactive environments)'));
   } catch (error: any) {
     console.error(chalk.red(`\n❌ Error: ${error.message}`));
     process.exit(1);
