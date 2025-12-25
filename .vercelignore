@@ -2,5 +2,3 @@
 # CLI is published to npm separately, not needed in Vercel deployment
 packages/cli/
 
-# Keep packages/server/ - may be used later for API routes
-

@@ -10,9 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "build:cli": "cd packages/cli && npm run build",
-    "build:server": "cd packages/server && npm run build",
-    "dev:server": "cd packages/server && npm run dev"
+    "build:cli": "cd packages/cli && npm run build"
   },
   "dependencies": {
     "next": "^16.0.8",
