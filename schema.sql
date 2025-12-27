@@ -35,13 +35,15 @@ CREATE TABLE IF NOT EXISTS users (
   "emailVerified" TIMESTAMP, -- NextAuth required (camelCase - quoted to preserve case)
   image TEXT, -- NextAuth required
   
-  -- Our custom fields (snake_case):
-  company TEXT, -- Custom field for user's company
-  
-  -- Timestamps (snake_case - our convention):
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
+      -- Our custom fields (snake_case):
+      company TEXT, -- Custom field for user's company
+      api_key_hash TEXT, -- Hashed API key for CLI authentication (SHA256 hash)
+      api_key_created_at TIMESTAMP, -- When the API key was generated
+      
+      -- Timestamps (snake_case - our convention):
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
 
 -- Accounts table
 -- NextAuth required table - stores OAuth account connections (for future OAuth providers)
@@ -106,7 +108,7 @@ CREATE TABLE IF NOT EXISTS verification_token (
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE verification_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE verification_token ENABLE ROW LEVEL SECURITY;
 
 -- No policies created = all access via Supabase public API is blocked
 -- Server-side access via direct PostgreSQL connection (DATABASE_URL) is unaffected

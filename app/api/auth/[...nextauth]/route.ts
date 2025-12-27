@@ -86,6 +86,39 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return token
     },
+    async session({ session, token }) {
+      // Fetch fresh user data from database to ensure we have latest name/company
+      if (token.id) {
+        try {
+          const userResult = await pool.query(
+            `SELECT id, email, name, company, "emailVerified" FROM users WHERE id = $1`,
+            [token.id]
+          )
+          
+          if (userResult.rows.length > 0) {
+            const user = userResult.rows[0]
+            if (session.user) {
+              session.user.id = user.id
+              session.user.email = user.email
+              session.user.name = user.name
+              ;(session.user as any).company = user.company
+              session.user.emailVerified = user.emailVerified
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching user in session callback:', error)
+          // Fallback to token values if DB query fails
+          if (session.user) {
+            session.user.id = token.id as string
+            session.user.email = token.email as string
+            session.user.name = token.name as string | null | undefined
+            ;(session.user as any).company = token.company as string | null | undefined
+            session.user.emailVerified = token.emailVerified as Date | null
+          }
+        }
+      }
+      return session
+    },
   },
 })
 

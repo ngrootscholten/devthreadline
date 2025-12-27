@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 
-export default function SignInPage() {
+export default function SignUpPage() {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,6 +18,12 @@ export default function SignInPage() {
     setError(null);
 
     try {
+      // Store name in a cookie if provided (will be read by NextAuth createUser event)
+      if (name) {
+        // Set cookie that expires in 24 hours (same as magic link)
+        document.cookie = `pendingUserName=${encodeURIComponent(name)}; path=/; max-age=${24 * 60 * 60}; SameSite=Lax`;
+      }
+
       // Use NextAuth's signIn function - handles CSRF tokens automatically
       // It will call our custom sendVerificationRequest (Postmark) automatically
       const result = await signIn("email", {
@@ -40,9 +47,9 @@ export default function SignInPage() {
   return (
     <div className="w-full max-w-md">
       <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8">
-        <h1 className="text-3xl font-bold mb-2 text-white">Welcome back</h1>
+        <h1 className="text-3xl font-bold mb-2 text-white">Join Threadline</h1>
         <p className="text-slate-400 mb-8">
-          Enter your email to receive a magic link
+          Enter your email to get started
         </p>
 
         {error && (
@@ -52,6 +59,21 @@ export default function SignInPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-slate-300 mb-2">
+              Full Name (Optional)
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              placeholder="Jane Smith"
+              disabled={isLoading}
+            />
+          </div>
+
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
               Work Email
@@ -82,9 +104,9 @@ export default function SignInPage() {
         </p>
 
         <p className="mt-6 text-sm text-slate-400 text-center">
-          Don't have an account?{" "}
-          <Link href="/auth/signup" className="text-green-400 hover:text-green-300 transition-colors">
-            Sign up
+          Already have an account?{" "}
+          <Link href="/auth/signin" className="text-green-400 hover:text-green-300 transition-colors">
+            Sign in
           </Link>
         </p>
       </div>

@@ -55,51 +55,46 @@ function VerifyEmailContent() {
             </svg>
           </div>
           <h1 className="text-3xl font-bold mb-2 text-white">Check your email</h1>
-          <p className="text-slate-400">
-            We've sent a magic link to
+          <p className="text-slate-400 mb-6">
+            We've sent you a magic link to sign in
           </p>
-          <p className="text-green-400 font-medium mt-1">{email}</p>
-        </div>
 
-        <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 mb-6 text-left">
-          <p className="text-sm text-slate-300 mb-3">
-            <strong className="text-white">What to do next:</strong>
-          </p>
-          <ol className="list-decimal list-inside space-y-2 text-sm text-slate-400">
-            <li>Check your inbox (and spam folder)</li>
-            <li>Click the magic link in the email</li>
-            <li>You'll be signed in automatically</li>
-          </ol>
-        </div>
-
-        <div className="bg-yellow-950/30 border border-yellow-800/50 rounded-lg p-4 mb-6 text-left">
-          <p className="text-sm text-yellow-300">
-            <strong className="text-yellow-400">Using enterprise email?</strong> Some email filters add redirect parameters to links. Our confirmation page handles this automatically.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          {resendSuccess && (
-            <div className="p-3 bg-green-950/50 border border-green-800 rounded-lg">
-              <p className="text-sm text-green-400">Magic link sent again!</p>
+          {email && (
+            <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 mb-4 text-left">
+              <p className="text-sm text-slate-300">
+                Please check your inbox for{" "}
+                <span className="font-semibold text-white">{email}</span>{" "}
+                and click the magic link to sign in.
+              </p>
             </div>
           )}
-          
-          <button
-            onClick={handleResend}
-            disabled={isResending || !email}
-            className="w-full px-4 py-2 border border-slate-700 text-slate-300 rounded-lg hover:border-slate-600 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isResending ? "Sending..." : "Resend magic link"}
-          </button>
-        </div>
-      </div>
 
-      <p className="mt-6 text-center text-slate-500 text-sm">
-        <Link href="/auth/signin" className="text-slate-400 hover:text-white transition-colors">
-          ← Use a different email
+          <p className="text-sm text-slate-500 mb-6">
+            The link will expire in 1 hour.
+          </p>
+        </div>
+
+        {resendSuccess && (
+          <div className="mb-4 p-3 bg-green-950/50 border border-green-800 rounded-lg">
+            <p className="text-sm text-green-400">Magic link sent again!</p>
+          </div>
+        )}
+        
+        <button
+          onClick={handleResend}
+          disabled={isResending || !email}
+          className="w-full px-4 py-2 border border-slate-700 text-slate-300 rounded-lg hover:border-slate-600 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+        >
+          {isResending ? "Sending..." : "Resend magic link"}
+        </button>
+
+        <Link
+          href="/auth/signin"
+          className="block text-sm text-green-400 hover:text-green-300 transition-colors"
+        >
+          Use a different email
         </Link>
-      </p>
+      </div>
     </div>
   );
 }

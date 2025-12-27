@@ -1,96 +1,281 @@
-import { auth } from "../api/auth/[...nextauth]/route";
-import { redirect } from "next/navigation";
+"use client";
+
+import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-export default async function AccountPage() {
-  const session = await auth();
+export default function AccountPage() {
+  const { data: session, status, update } = useSession();
+  const router = useRouter();
+  const [editingName, setEditingName] = useState(false);
+  const [editingCompany, setEditingCompany] = useState(false);
+  const [nameValue, setNameValue] = useState("");
+  const [companyValue, setCompanyValue] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [savingCompany, setSavingCompany] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [companyError, setCompanyError] = useState<string | null>(null);
+  const [nameSuccess, setNameSuccess] = useState(false);
+  const [companySuccess, setCompanySuccess] = useState(false);
 
-  if (!session) {
-    redirect("/auth/signin");
+  // Initialize form values from session
+  useEffect(() => {
+    if (session?.user) {
+      setNameValue(session.user.name || "");
+      setCompanyValue((session.user as any).company || "");
+    }
+  }, [session]);
+
+  if (status === "loading") {
+    return (
+      <main className="min-h-screen">
+        <section className="max-w-4xl mx-auto px-6 py-24">
+          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
+            <p className="text-slate-400">Loading...</p>
+          </div>
+        </section>
+      </main>
+    );
   }
+
+  if (status === "unauthenticated" || !session) {
+    router.push("/auth/signin");
+    return null;
+  }
+
+  const handleSaveName = async () => {
+    setSavingName(true);
+    setNameError(null);
+    setNameSuccess(false);
+
+    try {
+      const response = await fetch("/api/auth/update-name", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ name: nameValue.trim() || null }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setNameError(data.error || "Failed to update name");
+        setSavingName(false);
+        return;
+      }
+
+      setNameSuccess(true);
+      setEditingName(false);
+      // Update the session to reflect the change
+      await update();
+      setTimeout(() => setNameSuccess(false), 3000);
+    } catch (err: any) {
+      setNameError(err.message || "Failed to update name");
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const handleSaveCompany = async () => {
+    setSavingCompany(true);
+    setCompanyError(null);
+    setCompanySuccess(false);
+
+    try {
+      const response = await fetch("/api/auth/update-company", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ company: companyValue.trim() || null }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setCompanyError(data.error || "Failed to update company");
+        setSavingCompany(false);
+        return;
+      }
+
+      setCompanySuccess(true);
+      setEditingCompany(false);
+      // Update the session to reflect the change
+      await update();
+      setTimeout(() => setCompanySuccess(false), 3000);
+    } catch (err: any) {
+      setCompanyError(err.message || "Failed to update company");
+    } finally {
+      setSavingCompany(false);
+    }
+  };
+
+  const handleCancelName = () => {
+    setNameValue(session.user?.name || "");
+    setNameError(null);
+    setEditingName(false);
+  };
+
+  const handleCancelCompany = () => {
+    setCompanyValue((session.user as any)?.company || "");
+    setCompanyError(null);
+    setEditingCompany(false);
+  };
 
   return (
     <main className="min-h-screen">
       <section className="max-w-4xl mx-auto px-6 py-24">
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
-          <h1 className="text-4xl font-bold mb-6 text-white">Your Account</h1>
+          <h1 className="text-4xl font-bold mb-6 text-white">Your Profile</h1>
           
           <div className="space-y-6">
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-              <p className="text-green-400 text-sm font-semibold mb-1">✓ Signed In</p>
-              <p className="text-slate-300 text-sm">You are successfully authenticated!</p>
+            {/* Email - Read Only */}
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">
+                Email
+              </label>
+              <p className="text-white">{session.user?.email || "Not available"}</p>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">
-                  Email
-                </label>
-                <p className="text-white">{session.user?.email || "Not available"}</p>
-              </div>
-
-              {session.user?.name && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">
-                    Name
-                  </label>
-                  <p className="text-white">{session.user.name}</p>
+            {/* Name - Editable */}
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">
+                Name
+              </label>
+              {editingName ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={nameValue}
+                    onChange={(e) => setNameValue(e.target.value)}
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="Enter your name"
+                    autoFocus
+                  />
+                  {nameError && (
+                    <p className="text-red-400 text-sm">{nameError}</p>
+                  )}
+                  {nameSuccess && (
+                    <p className="text-green-400 text-sm">✓ Name updated successfully</p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveName}
+                      disabled={savingName}
+                      className="px-4 py-2 bg-green-400 text-black font-semibold rounded-lg hover:bg-green-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {savingName ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={handleCancelName}
+                      disabled={savingName}
+                      className="px-4 py-2 border border-slate-700 text-slate-300 rounded-lg hover:border-slate-600 hover:text-white transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
-              )}
-
-              {session.user?.company && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">
-                    Company
-                  </label>
-                  <p className="text-white">{session.user.company}</p>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">
-                  User ID
-                </label>
-                <p className="text-slate-400 font-mono text-sm">
-                  {session.user?.id || "Not available"}
-                </p>
-              </div>
-
-              {session.user?.emailVerified && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">
-                    Email Verified
-                  </label>
-                  <p className="text-green-400">
-                    ✓ Verified on {new Date(session.user.emailVerified).toLocaleDateString()}
+              ) : (
+                <div className="flex items-center gap-2 group">
+                  <p className="text-white">
+                    {session.user?.name || <span className="text-slate-500 italic">Not set</span>}
                   </p>
+                  <button
+                    onClick={() => setEditingName(true)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Edit name"
+                  >
+                    <svg
+                      className="w-4 h-4 text-slate-400 hover:text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                  </button>
                 </div>
               )}
             </div>
 
-            <div className="pt-6 border-t border-slate-800">
-              <form action="/api/auth/signout" method="POST">
-                <button
-                  type="submit"
-                  className="px-6 py-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors"
-                >
-                  Sign Out
-                </button>
-              </form>
+            {/* Company - Editable */}
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">
+                Company
+              </label>
+              {editingCompany ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={companyValue}
+                    onChange={(e) => setCompanyValue(e.target.value)}
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="Enter your company name"
+                    autoFocus
+                  />
+                  {companyError && (
+                    <p className="text-red-400 text-sm">{companyError}</p>
+                  )}
+                  {companySuccess && (
+                    <p className="text-green-400 text-sm">✓ Company updated successfully</p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveCompany}
+                      disabled={savingCompany}
+                      className="px-4 py-2 bg-green-400 text-black font-semibold rounded-lg hover:bg-green-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {savingCompany ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={handleCancelCompany}
+                      disabled={savingCompany}
+                      className="px-4 py-2 border border-slate-700 text-slate-300 rounded-lg hover:border-slate-600 hover:text-white transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 group">
+                  <p className="text-white">
+                    {(session.user as any)?.company || <span className="text-slate-500 italic">Not set</span>}
+                  </p>
+                  <button
+                    onClick={() => setEditingCompany(true)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Edit company"
+                  >
+                    <svg
+                      className="w-4 h-4 text-slate-400 hover:text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div className="pt-4">
-              <Link
-                href="/"
-                className="text-green-400 hover:text-green-300 transition-colors"
-              >
-                ← Back to Home
-              </Link>
-            </div>
           </div>
         </div>
       </section>
     </main>
   );
 }
-

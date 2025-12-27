@@ -72,8 +72,8 @@ function ConfirmContent() {
   return (
     <div className="w-full max-w-md">
       <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 text-center">
-        <div className="mb-6">
-          <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="mb-8">
+          <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
             <svg
               className="w-8 h-8 text-green-400"
               fill="none"
@@ -84,18 +84,20 @@ function ConfirmContent() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                d="M5 13l4 4L19 7"
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold mb-2 text-white">Confirm your email</h1>
-          <p className="text-slate-400 mb-2">
-            Click the button below to complete your sign-in.
+          <h1 className="text-3xl font-bold mb-2 text-white">Confirm Sign In</h1>
+          <p className="text-slate-400 mb-8">
+            You're signing in to Threadline.
           </p>
+
           {email && (
-            <p className="text-sm text-slate-500 mb-4">
-              Signing in as: <span className="text-slate-300">{email}</span>
-            </p>
+            <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 mb-6 text-left">
+              <p className="text-sm text-slate-400 mb-1">Email address:</p>
+              <p className="text-lg font-bold text-white">{email}</p>
+            </div>
           )}
         </div>
 
@@ -108,7 +110,7 @@ function ConfirmContent() {
         <button
           onClick={handleConfirm}
           disabled={loading || !token || !email}
-          className="w-full px-4 py-3 bg-green-400 text-black font-semibold rounded-lg hover:bg-green-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+          className="w-full px-4 py-3 bg-green-400 text-black font-semibold rounded-lg hover:bg-green-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-6"
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
@@ -132,23 +134,16 @@ function ConfirmContent() {
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
-              Verifying...
+              Confirming...
             </span>
           ) : (
-            "Confirm and Sign In"
+            "Confirm Sign In"
           )}
         </button>
 
-        <p className="text-xs text-slate-500 mb-4">
-          This helps protect against spam bots and ensures you're a real person.
+        <p className="text-xs text-slate-500">
+          This link will expire in 48 hours. If you didn't request this, you can safely close this page.
         </p>
-
-        <Link
-          href="/auth/signin"
-          className="block text-sm text-green-400 hover:text-green-300 transition-colors"
-        >
-          Request a new magic link
-        </Link>
       </div>
     </div>
   );
