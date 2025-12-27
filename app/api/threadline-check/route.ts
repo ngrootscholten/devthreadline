@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processThreadlines } from '../../lib/processors/expert';
+import { getPool } from '../../lib/db';
+import { hashApiKey } from '../../lib/auth/api-key';
 
 export interface ReviewRequest {
   threadlines: Array<{
@@ -161,17 +163,47 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Authentication: Try environment variables first (backward compatibility)
     const serverApiKey = process.env.THREADLINE_API_KEY;
-    if (!serverApiKey) {
-      return NextResponse.json(
-        { error: 'Server configuration error: THREADLINE_API_KEY not set' },
-        { status: 500 }
-      );
+    const serverAccount = process.env.THREADLINE_ACCOUNT;
+    
+    let isAuthenticated = false;
+    
+    if (serverApiKey && serverAccount) {
+      // Backward compatibility: Check if env vars match
+      if (request.apiKey === serverApiKey && request.account === serverAccount) {
+        isAuthenticated = true;
+        console.log('   ✓ Authenticated via environment variables (backward compatibility)');
+      }
     }
-
-    if (request.apiKey !== serverApiKey) {
+    
+    // If not authenticated via env vars, check database
+    if (!isAuthenticated) {
+      try {
+        const pool = getPool();
+        const result = await pool.query(
+          `SELECT api_key_hash FROM users WHERE email = $1 AND api_key_hash IS NOT NULL`,
+          [request.account]
+        );
+        
+        if (result.rows.length > 0) {
+          const storedHash = result.rows[0].api_key_hash;
+          const providedHash = hashApiKey(request.apiKey);
+          
+          if (providedHash === storedHash) {
+            isAuthenticated = true;
+            console.log('   ✓ Authenticated via database (user API key)');
+          }
+        }
+      } catch (dbError: any) {
+        console.error('Database authentication error:', dbError);
+        // Don't fail here - we'll return 401 below
+      }
+    }
+    
+    if (!isAuthenticated) {
       return NextResponse.json(
-        { error: 'Invalid API key' },
+        { error: 'Invalid API key or account' },
         { status: 401 }
       );
     }
