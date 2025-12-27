@@ -17,7 +17,7 @@ export interface ReviewRequest {
   files: string[];
   apiKey: string; // Client's Threadline API key for authentication
   account: string;        // REQUIRED: Account identifier
-  repoName?: string;     // NEW: Repository name (e.g., "user/repo")
+  repoName?: string;     // Raw git remote URL (e.g., "https://github.com/user/repo.git")
   branchName?: string;   // NEW: Branch name (e.g., "feature/x")
 }
 
@@ -164,43 +164,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Authentication: Try environment variables first (backward compatibility)
+    // Authentication: Check database first (to get userId for logged-in users)
+    // Fall back to environment variables only if database lookup fails
     const serverApiKey = process.env.THREADLINE_API_KEY;
     const serverAccount = process.env.THREADLINE_ACCOUNT;
     
     let isAuthenticated = false;
     let userId: string | undefined = undefined;
     
-    if (serverApiKey && serverAccount) {
-      // Backward compatibility: Check if env vars match
+    // Try database first - this ensures logged-in users get their userId
+    try {
+      const pool = getPool();
+      const result = await pool.query(
+        `SELECT id, api_key_hash FROM users WHERE email = $1 AND api_key_hash IS NOT NULL`,
+        [request.account]
+      );
+      
+      if (result.rows.length > 0) {
+        const storedHash = result.rows[0].api_key_hash;
+        const providedHash = hashApiKey(request.apiKey);
+        
+        if (providedHash === storedHash) {
+          isAuthenticated = true;
+          userId = result.rows[0].id;
+          console.log('   ✓ Authenticated via database (user API key)');
+        }
+      }
+    } catch (dbError: any) {
+      console.error('Database authentication error:', dbError);
+      // Don't fail here - we'll return 401 below
+    }
+    
+    // Fall back to environment variables (backward compatibility for legacy setups)
+    if (!isAuthenticated && serverApiKey && serverAccount) {
       if (request.apiKey === serverApiKey && request.account === serverAccount) {
         isAuthenticated = true;
         console.log('   ✓ Authenticated via environment variables (backward compatibility)');
-      }
-    }
-    
-    // If not authenticated via env vars, check database
-    if (!isAuthenticated) {
-      try {
-        const pool = getPool();
-        const result = await pool.query(
-          `SELECT id, api_key_hash FROM users WHERE email = $1 AND api_key_hash IS NOT NULL`,
-          [request.account]
-        );
-        
-        if (result.rows.length > 0) {
-          const storedHash = result.rows[0].api_key_hash;
-          const providedHash = hashApiKey(request.apiKey);
-          
-          if (providedHash === storedHash) {
-            isAuthenticated = true;
-            userId = result.rows[0].id;
-            console.log('   ✓ Authenticated via database (user API key)');
-          }
-        }
-      } catch (dbError: any) {
-        console.error('Database authentication error:', dbError);
-        // Don't fail here - we'll return 401 below
+        // Note: userId remains undefined for legacy env var auth
       }
     }
     

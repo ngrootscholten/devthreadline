@@ -1,9 +1,9 @@
 import simpleGit, { SimpleGit } from 'simple-git';
 
 /**
- * Gets repository name from git remote URL.
- * Parses common formats: github.com/user/repo, gitlab.com/user/repo, etc.
- * Returns null if no remote or parsing fails.
+ * Gets the raw git remote URL from origin.
+ * Returns the URL exactly as Git provides it - no parsing or normalization.
+ * Server-side can normalize variations if needed based on actual data.
  */
 export async function getRepoName(repoRoot: string): Promise<string | null> {
   const git: SimpleGit = simpleGit(repoRoot);
@@ -12,32 +12,13 @@ export async function getRepoName(repoRoot: string): Promise<string | null> {
     const remotes = await git.getRemotes(true);
     const origin = remotes.find(r => r.name === 'origin');
     
-    if (!origin?.refs?.fetch) {
+    if (!origin || !origin.refs?.fetch) {
       return null;
     }
 
-    const url = origin.refs.fetch;
-    
-    // Parse repo name from common URL formats:
-    // - https://github.com/user/repo.git
-    // - git@github.com:user/repo.git
-    // - https://gitlab.com/user/repo.git
-    // - git@gitlab.com:user/repo.git
-    const patterns = [
-      /(?:github\.com|gitlab\.com)[\/:]([^\/]+\/[^\/]+?)(?:\.git)?$/,
-      /([^\/]+\/[^\/]+?)(?:\.git)?$/
-    ];
-
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match && match[1]) {
-        return match[1];
-      }
-    }
-
-    return null;
+    // Return raw URL - let server handle normalization if needed
+    return origin.refs.fetch;
   } catch (error) {
-    // If no remote or error, return null
     return null;
   }
 }

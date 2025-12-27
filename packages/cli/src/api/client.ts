@@ -13,7 +13,7 @@ export interface ReviewRequest {
   files: string[];
   apiKey: string;
   account: string;        // REQUIRED: Account identifier
-  repoName?: string;     // NEW: Repository name (e.g., "user/repo")
+  repoName?: string;     // Raw git remote URL (e.g., "https://github.com/user/repo.git")
   branchName?: string;   // NEW: Branch name (e.g., "feature/x")
 }
 
