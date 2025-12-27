@@ -39,7 +39,7 @@ export default function DashboardPage() {
     } else if (status === "unauthenticated") {
       router.push("/auth/signin");
     }
-  }, [status]); // Only depend on status, not session object
+  }, [status]); // Only depend on status, not session object - YESS!
 
   const fetchChecks = async () => {
     try {
