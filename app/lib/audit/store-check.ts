@@ -70,6 +70,9 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
 
     const checkId = checkResult.rows[0].id;
 
+    // Debug: Log what we're storing
+    console.log(`   💾 Storing check: repoName=${request.repoName}, branchName=${request.branchName}`);
+
     // 2. Insert diff content (unified diff format - industry standard)
     // The diff is stored exactly as received from git, in unified diff format
     // This format is compatible with: git apply, patch command, GitHub/GitLab, most tools

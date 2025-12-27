@@ -12,10 +12,7 @@ export async function GET() {
       model,
       apiKeyConfigured: hasApiKey,
       database: {
-        connected: dbTest.connected,
-        urlConfigured: !!process.env.DATABASE_URL,
-        ...(dbTest.error && { error: dbTest.error }),
-        ...(dbTest.details && { details: dbTest.details })
+        connected: dbTest.connected
       }
     }
   });
