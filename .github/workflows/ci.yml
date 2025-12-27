@@ -1,0 +1,37 @@
+name: Build and Check
+
+on:
+  # Trigger on commits to any branch (including main/master)
+  push:
+    # No branches filter = triggers on all branches
+  
+  # Trigger on pull requests (opened, synchronize, reopened)
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history for git diff to work properly
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build (includes threadlines check, linting, tsc, etc.)
+        env:
+          THREADLINE_API_KEY: ${{ secrets.THREADLINE_API_KEY }}
+          THREADLINE_ACCOUNT: ${{ secrets.THREADLINE_ACCOUNT }}
+        run: npm run build
+
