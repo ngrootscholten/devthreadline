@@ -30,7 +30,7 @@ program
 program
   .command('check')
   .description('Check code against your threadlines')
-  .option('--api-url <url>', 'Threadline server URL', process.env.THREADLINE_API_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'))
+  .option('--api-url <url>', 'Threadline server URL', process.env.THREADLINE_API_URL || 'https://devthreadline.com')
   .option('--full', 'Show all results (compliant, attention, not_relevant). Default: only attention items')
   .option('--branch <name>', 'Review all commits in branch vs base (e.g., --branch feature/new-feature)')
   .option('--commit <ref>', 'Review specific commit. Accepts commit SHA or git reference (e.g., HEAD, HEAD~1, abc123). Example: --commit HEAD')

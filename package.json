@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npx -y threadlines check && next build",
     "start": "next start",
     "lint": "next lint",
     "build:cli": "cd packages/cli && npm run build"

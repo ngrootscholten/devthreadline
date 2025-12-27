@@ -192,11 +192,10 @@ export async function checkCommand(options: {
     const repoName = await getRepoName(repoRoot);
     const branchName = await getBranchName(repoRoot);
 
-    // 5. Get API URL (auto-detect Vercel if available)
+    // 5. Get API URL
     const apiUrl = options.apiUrl || 
                    process.env.THREADLINE_API_URL || 
-                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-                   'http://localhost:3000';
+                   'https://devthreadline.com';
 
     // 6. Call review API
     console.log(chalk.gray('🤖 Running threadline checks...'));
