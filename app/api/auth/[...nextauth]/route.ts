@@ -4,12 +4,25 @@ import Email from "next-auth/providers/email"
 import { getPool } from "../../../lib/db"
 import { ServerClient } from "postmark"
 
-const pool = getPool()
-const postmarkClient = new ServerClient(process.env.POSTMARK_API_TOKEN!)
+// Lazy Postmark client creation - only creates when sending email
+function getPostmarkClient() {
+  if (!process.env.POSTMARK_API_TOKEN) {
+    throw new Error('POSTMARK_API_TOKEN environment variable is not set')
+  }
+  return new ServerClient(process.env.POSTMARK_API_TOKEN)
+}
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PostgresAdapter(pool),
-  providers: [
+// Lazy NextAuth initialization - only creates adapter when actually needed
+// This prevents database connection during build time
+function getNextAuthConfig() {
+  // Only create adapter if DATABASE_URL is available (runtime, not build time)
+  const adapter = process.env.DATABASE_URL 
+    ? PostgresAdapter(getPool())
+    : undefined
+  
+  return {
+    adapter,
+    providers: [
     Email({
       from: process.env.POSTMARK_FROM_EMAIL,
       // Provide minimal server config to satisfy NextAuth (we override sendVerificationRequest)
@@ -38,6 +51,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const confirmationUrl = `${process.env.NEXTAUTH_URL}/auth/confirm?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`
         
         try {
+          const postmarkClient = getPostmarkClient()
           await postmarkClient.sendEmail({
             From: process.env.POSTMARK_FROM_EMAIL!,
             To: identifier,
@@ -90,6 +104,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Fetch fresh user data from database to ensure we have latest name/company
       if (token.id) {
         try {
+          const pool = getPool()
           const userResult = await pool.query(
             `SELECT id, email, name, company, "emailVerified" FROM users WHERE id = $1`,
             [token.id]
@@ -120,7 +135,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session
     },
   },
-})
+  }
+}
+
+// Initialize NextAuth lazily - config is only created when this module is actually used
+// During build, if DATABASE_URL is missing, adapter will be undefined
+// NextAuth will handle this gracefully (it may use a fallback or fail at runtime)
+const nextAuthConfig = getNextAuthConfig()
+export const { handlers, signIn, signOut, auth } = NextAuth(nextAuthConfig)
 
 export const { GET, POST } = handlers
 

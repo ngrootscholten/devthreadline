@@ -3,8 +3,6 @@ import { auth } from '../[...nextauth]/route'
 import { getPool } from '../../../lib/db'
 import { generateApiKey, hashApiKey } from '../../../lib/auth/api-key'
 
-const pool = getPool()
-
 /**
  * GET /api/auth/api-key
  * Returns the API key generation date (if exists) or null
@@ -21,6 +19,7 @@ export async function GET() {
       )
     }
 
+    const pool = getPool()
     const result = await pool.query(
       `SELECT api_key_created_at FROM users WHERE id = $1`,
       [session.user.id]
@@ -67,6 +66,7 @@ export async function POST() {
     const apiKeyHash = hashApiKey(apiKey)
 
     // Store hash and timestamp in database
+    const pool = getPool()
     await pool.query(
       `UPDATE users 
        SET api_key_hash = $1, 

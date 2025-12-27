@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '../[...nextauth]/route'
 import { getPool } from '../../../lib/db'
 
-const pool = getPool()
-
 export async function POST(request: NextRequest) {
   try {
     const session = await auth()
@@ -26,6 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user's company in database (can be null to clear it)
+    const pool = getPool()
     await pool.query(
       `UPDATE users SET company = $1, updated_at = NOW() WHERE id = $2`,
       [company || null, session.user.id]
