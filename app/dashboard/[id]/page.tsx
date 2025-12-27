@@ -6,6 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Diff, Hunk, parseDiff } from "react-diff-view";
 import "react-diff-view/style/index.css";
+import ReactMarkdown from "react-markdown";
 
 interface CheckDetail {
   id: string;
@@ -223,54 +224,82 @@ export default function CheckDetailPage() {
             {check.threadlines.map((threadline) => (
               <div
                 key={threadline.checkThreadlineId}
-                className="border border-slate-800 rounded-lg p-6 bg-slate-950/30"
+                className="border border-slate-800 rounded-lg bg-slate-950/30 overflow-hidden"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-white mb-1">
-                      {threadline.threadlineId}
-                    </h3>
-                    <p className="text-sm text-slate-400">Version {threadline.version}</p>
-                    <p className="text-sm text-slate-400 mt-1">
-                      Patterns: {Array.isArray(threadline.patterns) ? threadline.patterns.join(", ") : "—"}
-                    </p>
+                {/* Summary - Always Visible */}
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white mb-1">
+                        {threadline.threadlineId}
+                      </h3>
+                      <p className="text-sm text-slate-400">Version {threadline.version}</p>
+                      <p className="text-sm text-slate-400 mt-1">
+                        Patterns: {Array.isArray(threadline.patterns) ? threadline.patterns.join(", ") : "—"}
+                      </p>
+                    </div>
+                    {threadline.result && (
+                      <div className={`text-lg font-semibold ${getStatusColor(threadline.result.status)}`}>
+                        {getStatusIcon(threadline.result.status)} {threadline.result.status}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Expandable Threadline Content */}
+                  {threadline.content && (
+                    <details className="mt-4 group">
+                      <summary className="cursor-pointer px-3 py-2 -mx-3 -my-2 rounded hover:bg-slate-800/50 transition-colors flex items-center justify-between select-none">
+                        <span className="text-sm text-slate-400 group-open:text-slate-300">Guidelines</span>
+                        <svg 
+                          className="w-5 h-5 text-slate-500 group-open:text-slate-400 group-open:rotate-180 transition-transform" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </summary>
+                      <div className="mt-3 pt-3 border-t border-slate-800">
+                        <div className="prose prose-invert prose-sm max-w-none">
+                          <ReactMarkdown className="text-slate-300">
+                            {threadline.content}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    </details>
+                  )}
+
+                  {/* Result Details */}
                   {threadline.result && (
-                    <div className={`text-lg font-semibold ${getStatusColor(threadline.result.status)}`}>
-                      {getStatusIcon(threadline.result.status)} {threadline.result.status}
+                    <div className="mt-4 space-y-2">
+                      {threadline.result.reasoning && (
+                        <div>
+                          <p className="text-sm font-semibold text-slate-400 mb-1">Reasoning</p>
+                          <p className="text-slate-300 whitespace-pre-wrap">{threadline.result.reasoning}</p>
+                        </div>
+                      )}
+                      {threadline.result.fileReferences && threadline.result.fileReferences.length > 0 && (
+                        <div>
+                          <p className="text-sm font-semibold text-slate-400 mb-1">Files</p>
+                          <ul className="list-disc list-inside text-slate-300">
+                            {threadline.result.fileReferences.map((file, idx) => (
+                              <li key={idx} className="font-mono text-sm">
+                                {file}
+                                {threadline.result?.lineReferences?.[idx] && (
+                                  <span className="text-slate-500">:{threadline.result.lineReferences[idx]}</span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
+
+                  {!threadline.result && (
+                    <p className="text-slate-500 text-sm mt-4">No result available</p>
+                  )}
                 </div>
-
-                {threadline.result && (
-                  <div className="mt-4 space-y-2">
-                    {threadline.result.reasoning && (
-                      <div>
-                        <p className="text-sm font-semibold text-slate-400 mb-1">Reasoning</p>
-                        <p className="text-slate-300 whitespace-pre-wrap">{threadline.result.reasoning}</p>
-                      </div>
-                    )}
-                    {threadline.result.fileReferences && threadline.result.fileReferences.length > 0 && (
-                      <div>
-                        <p className="text-sm font-semibold text-slate-400 mb-1">Files</p>
-                        <ul className="list-disc list-inside text-slate-300">
-                          {threadline.result.fileReferences.map((file, idx) => (
-                            <li key={idx} className="font-mono text-sm">
-                              {file}
-                              {threadline.result?.lineReferences?.[idx] && (
-                                <span className="text-slate-500">:{threadline.result.lineReferences[idx]}</span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {!threadline.result && (
-                  <p className="text-slate-500 text-sm mt-4">No result available</p>
-                )}
               </div>
             ))}
           </div>
