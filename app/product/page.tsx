@@ -32,7 +32,7 @@ export default function Product() {
               <div className="flex-1">
                 <h3 className="text-3xl font-bold mb-4">Define Your Threadlines</h3>
                 <p className="text-lg text-slate-300 mb-6">
-                  Create a <code className="bg-slate-800 px-2 py-1 rounded text-sm">/threadlines</code> folder in your repository. Each markdown file is a single code quality standard or convention.
+                  Create a <code className="bg-slate-800 px-2 py-1 rounded text-sm">/threadlines</code> folder in your repository. Add markdown files ('threadlines') defining your team's coding standards. Each file is a single code quality standard or convention.
                 </p>
                 <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 overflow-x-auto">
                   <div className="text-sm text-slate-400 mb-2">Example: <code className="text-slate-300">threadlines/feature-flags.md</code></div>
@@ -59,7 +59,7 @@ All feature flags must:
               <div className="flex-1">
                 <h3 className="text-3xl font-bold mb-4">Run the Check</h3>
                 <p className="text-lg text-slate-300 mb-6">
-                  When you're ready to review your changes, run:
+                  The <code className="bg-slate-800 px-2 py-1 rounded text-sm">npx threadline check</code> command runs in a few seconds from your local CLI and CI pipeline, validating your changes against your team's coding standards.
                 </p>
                 <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
                   <pre className="text-green-400"><code>{`npx threadline check`}</code></pre>
@@ -80,25 +80,7 @@ All feature flags must:
               <div className="flex-1">
                 <h3 className="text-3xl font-bold mb-4">Get Focused Feedback</h3>
                 <p className="text-lg text-slate-300 mb-6">
-                  Run <code className="bg-slate-800 px-2 py-1 rounded text-sm">npx threadline check</code> and Threadline detects your changes and then runs parallel AI checks for each markdown file, and returns a simple status: compliant, needs attention, or not relevant.
-                </p>
-                <p className="text-slate-400">
-                  You only see the threadlines that require attention. No noise, just actionable feedback.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Step 4 */}
-          <div className="mb-24">
-            <div className="flex items-start gap-6 mb-8">
-              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-r from-white to-green-500 flex items-center justify-center text-xl font-bold text-black">
-                4
-              </div>
-              <div className="flex-1">
-                <h3 className="text-3xl font-bold mb-4">Review & Fix</h3>
-                <p className="text-lg text-slate-300 mb-6">
-                  You see a clean, focused report:
+                  The command returns simple status for each coding standard: compliant, needs attention, or not relevant. You only see the threadlines that require attention - no noise, just actionable feedback.
                 </p>
                 <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 font-mono text-sm">
                   <div className="text-slate-300 mb-4">25 threadlines checked</div>
@@ -143,25 +125,7 @@ All feature flags must:
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="max-w-7xl mx-auto px-6 py-24">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="bg-gradient-to-br from-green-950/30 to-slate-900/50 border border-green-900/30 rounded-2xl p-12">
-            <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
-            <p className="text-lg text-slate-300 mb-8">
-              Try Threadline with your codebase and see how focused, parallel AI checks can improve your code quality.
-            </p>
-            <div className="flex gap-4 justify-center flex-wrap">
-              <Link
-                href="/"
-                className="px-8 py-4 bg-green-400 text-black font-semibold rounded-lg hover:bg-green-500 transition-all shadow-lg shadow-green-500/25"
-              >
-                Learn More About the Vision
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      
 
       {/* Footer */}
       <footer className="border-t border-slate-800 mt-24">
