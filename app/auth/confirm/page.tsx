@@ -22,7 +22,9 @@ function ConfirmContent() {
     
     // Simply redirect to NextAuth's callback endpoint
     // NextAuth will handle token verification, user creation, and session setup
-    window.location.href = `/api/auth/callback/email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+    // Include callbackUrl to redirect to dashboard after successful sign-in
+    const callbackUrl = encodeURIComponent('/dashboard');
+    window.location.href = `/api/auth/callback/email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}&callbackUrl=${callbackUrl}`;
   };
 
   if (error && !token) {

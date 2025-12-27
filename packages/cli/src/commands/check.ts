@@ -9,6 +9,30 @@ import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
 
+/**
+ * Detect the environment where the check is being run
+ * Returns: 'vercel', 'github', 'gitlab', or 'local'
+ */
+function detectEnvironment(): string {
+  // Vercel: VERCEL env var is always set in Vercel builds
+  if (process.env.VERCEL) {
+    return 'vercel';
+  }
+  
+  // GitHub Actions: GITHUB_ACTIONS env var is always set
+  if (process.env.GITHUB_ACTIONS) {
+    return 'github';
+  }
+  
+  // GitLab CI: GITLAB_CI env var is always set, or CI is set with GitLab-specific vars
+  if (process.env.GITLAB_CI || (process.env.CI && process.env.CI_COMMIT_SHA)) {
+    return 'gitlab';
+  }
+  
+  // Local development: none of the above
+  return 'local';
+}
+
 export async function checkCommand(options: { 
   apiUrl?: string; 
   full?: boolean;
@@ -200,6 +224,7 @@ export async function checkCommand(options: {
     // 6. Call review API
     console.log(chalk.gray('🤖 Running threadline checks...'));
     const client = new ReviewAPIClient(apiUrl);
+    const environment = detectEnvironment();
     const response = await client.review({
       threadlines: threadlinesWithContext,
       diff: gitDiff.diff,
@@ -210,7 +235,8 @@ export async function checkCommand(options: {
       branchName: branchName || undefined,
       commitSha: commitSha,
       commitMessage: commitMessage,
-      prTitle: prTitle
+      prTitle: prTitle,
+      environment: environment
     });
 
     // 7. Display results (with filtering if --full not specified)

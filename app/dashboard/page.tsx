@@ -8,7 +8,7 @@ import Link from "next/link";
 interface Check {
   id: string;
   repoName: string | null;
-  branchName: string | null;
+  environment: string | null;
   commitSha: string | null;
   reviewContext: string | null;
   diffStats: {
@@ -34,12 +34,12 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status === "authenticated" && session) {
+    if (status === "authenticated") {
       fetchChecks();
     } else if (status === "unauthenticated") {
       router.push("/auth/signin");
     }
-  }, [status, session]);
+  }, [status]); // Only depend on status, not session object
 
   const fetchChecks = async () => {
     try {
@@ -101,6 +101,54 @@ export default function DashboardPage() {
     return parts.join(", ") || "No results";
   };
 
+  const formatRepoName = (repoName: string | null): string => {
+    if (!repoName) return "—";
+    
+    // If it's already in format "user/repo", return as-is
+    if (!repoName.includes('://') && repoName.includes('/')) {
+      return repoName;
+    }
+    
+    // Try to parse GitHub/GitLab URLs
+    try {
+      const url = new URL(repoName);
+      const pathParts = url.pathname.split('/').filter(Boolean);
+      
+      // Remove .git suffix if present
+      const lastPart = pathParts[pathParts.length - 1];
+      const repoPart = lastPart?.endsWith('.git') ? lastPart.slice(0, -4) : lastPart;
+      
+      if (pathParts.length >= 2) {
+        return `${pathParts[pathParts.length - 2]}/${repoPart}`;
+      }
+      
+      // Fallback: return last part without .git
+      return repoPart || repoName;
+    } catch {
+      // If URL parsing fails, return as-is
+      return repoName;
+    }
+  };
+
+  const getEnvironmentBadge = (env: string | null) => {
+    if (!env) return null;
+    
+    const colors: Record<string, string> = {
+      vercel: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+      github: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
+      gitlab: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+      local: 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+    };
+    
+    const color = colors[env] || 'bg-slate-500/20 text-slate-300 border-slate-500/30';
+    
+    return (
+      <span className={`px-2 py-1 rounded text-xs font-medium border ${color}`}>
+        {env}
+      </span>
+    );
+  };
+
   return (
     <main className="min-h-screen">
       <section className="max-w-7xl mx-auto px-6 py-24">
@@ -127,7 +175,7 @@ export default function DashboardPage() {
                   <tr className="border-b border-slate-800">
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Date</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Repository</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Branch</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Environment</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Files</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Changes</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Threadlines</th>
@@ -139,18 +187,27 @@ export default function DashboardPage() {
                     <tr
                       key={check.id}
                       className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/dashboard/${check.id}`)}
+                      onClick={() => router.push(`/check/${check.id}`)}
                     >
                       <td className="py-3 px-4 text-sm text-slate-300">
-                        <Link href={`/dashboard/${check.id}`} className="hover:text-white transition-colors">
+                        <Link href={`/check/${check.id}`} className="hover:text-white transition-colors">
                           {formatDate(check.createdAt)}
                         </Link>
                       </td>
                       <td className="py-3 px-4 text-sm text-white font-mono">
-                        {check.repoName || <span className="text-slate-500">—</span>}
+                        {check.repoName ? (
+                          <span 
+                            title={check.repoName}
+                            className="cursor-help"
+                          >
+                            {formatRepoName(check.repoName)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">—</span>
+                        )}
                       </td>
-                      <td className="py-3 px-4 text-sm text-white font-mono">
-                        {check.branchName || <span className="text-slate-500">—</span>}
+                      <td className="py-3 px-4 text-sm">
+                        {getEnvironmentBadge(check.environment) || <span className="text-slate-500">—</span>}
                       </td>
                       <td className="py-3 px-4 text-sm text-slate-300">
                         {check.filesChangedCount}

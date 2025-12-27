@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       `SELECT 
         c.id,
         c.repo_name,
-        c.branch_name,
+        c.environment,
         c.commit_sha,
         c.review_context,
         c.diff_lines_added,
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
       checks: result.rows.map(row => ({
         id: row.id,
         repoName: row.repo_name,
-        branchName: row.branch_name,
+        environment: row.environment,
         commitSha: row.commit_sha,
         reviewContext: row.review_context,
         diffStats: {

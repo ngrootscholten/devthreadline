@@ -18,6 +18,7 @@ export interface ReviewRequest {
   commitSha?: string;    // Commit SHA (when commit context available)
   commitMessage?: string; // Commit message (when commit context available)
   prTitle?: string;      // PR/MR title (when GitLab MR context available)
+  environment?: string;  // Environment where check was run: 'vercel', 'github', 'gitlab', 'local'
 }
 
 export interface ExpertResult {

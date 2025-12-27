@@ -55,12 +55,12 @@ export default function CheckDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status === "authenticated" && session && checkId) {
+    if (status === "authenticated" && checkId) {
       fetchCheck();
     } else if (status === "unauthenticated") {
       router.push("/auth/signin");
     }
-  }, [status, session, checkId]);
+  }, [status, checkId]); // Only depend on status and checkId, not session object
 
   const fetchCheck = async () => {
     try {

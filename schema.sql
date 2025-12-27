@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS checks (
   commit_sha TEXT,
   commit_message TEXT,
   pr_title TEXT,
+  environment TEXT,
   review_context TEXT,
   diff_lines_added INTEGER DEFAULT 0,
   diff_lines_removed INTEGER DEFAULT 0,

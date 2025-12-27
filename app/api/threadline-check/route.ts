@@ -22,6 +22,7 @@ export interface ReviewRequest {
   commitSha?: string;    // Commit SHA (when commit context available)
   commitMessage?: string; // Commit message (when commit context available)
   prTitle?: string;      // PR/MR title (when GitLab MR context available)
+  environment?: string;  // Environment where check was run: 'vercel', 'github', 'gitlab', 'local'
 }
 
 function countLinesInDiff(diff: string): { added: number; removed: number; total: number } {
@@ -80,6 +81,9 @@ export async function POST(req: NextRequest) {
     
     // Audit logging
     console.log(`📥 Received request: POST /api/threadline-check`);
+    if (request.environment) {
+      console.log(`   Environment: ${request.environment}`);
+    }
     console.log(`📊 Audit Statistics:`);
     console.log(`   Code Changes:`);
     console.log(`     - Files changed: ${changedFilesCount}`);
