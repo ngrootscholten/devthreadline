@@ -10,37 +10,23 @@ import * as path from 'path';
 import chalk from 'chalk';
 
 /**
- * Detect the environment where the check is being run
- * Returns: 'vercel', 'github', 'gitlab', or 'local'
+ * Detect the environment where the check is being run.
+ * 
+ * CI Environment Detection:
+ * - Vercel: VERCEL=1
+ * - GitHub Actions: GITHUB_ACTIONS=1
+ * - GitLab CI: GITLAB_CI=1 or (CI=1 + CI_COMMIT_SHA)
+ * - Local: None of the above
+ * 
+ * Available CI Environment Variables:
+ * - GitHub Actions: GITHUB_REPOSITORY, GITHUB_REF_NAME, GITHUB_SHA, GITHUB_BASE_REF, GITHUB_HEAD_REF
+ * - Vercel: VERCEL_GIT_REPO_OWNER, VERCEL_GIT_REPO_SLUG, VERCEL_GIT_COMMIT_REF, VERCEL_GIT_COMMIT_SHA
+ * - GitLab CI: CI_COMMIT_REF_NAME, CI_COMMIT_SHA, CI_MERGE_REQUEST_IID, CI_MERGE_REQUEST_TITLE
  */
 function detectEnvironment(): string {
-  console.log(chalk.gray('   [DEBUG] detectEnvironment: Starting detection...'));
-  console.log(chalk.gray(`   [DEBUG] detectEnvironment: VERCEL = "${process.env.VERCEL || 'NOT SET'}"`));
-  console.log(chalk.gray(`   [DEBUG] detectEnvironment: GITHUB_ACTIONS = "${process.env.GITHUB_ACTIONS || 'NOT SET'}"`));
-  console.log(chalk.gray(`   [DEBUG] detectEnvironment: GITLAB_CI = "${process.env.GITLAB_CI || 'NOT SET'}"`));
-  console.log(chalk.gray(`   [DEBUG] detectEnvironment: CI = "${process.env.CI || 'NOT SET'}"`));
-  console.log(chalk.gray(`   [DEBUG] detectEnvironment: CI_COMMIT_SHA = "${process.env.CI_COMMIT_SHA || 'NOT SET'}"`));
-  
-  // Vercel: VERCEL env var is always set in Vercel builds
-  if (process.env.VERCEL) {
-    console.log(chalk.green('   [DEBUG] detectEnvironment: Detected VERCEL'));
-    return 'vercel';
-  }
-  
-  // GitHub Actions: GITHUB_ACTIONS env var is always set
-  if (process.env.GITHUB_ACTIONS) {
-    console.log(chalk.green('   [DEBUG] detectEnvironment: Detected GITHUB_ACTIONS'));
-    return 'github';
-  }
-  
-  // GitLab CI: GITLAB_CI env var is always set, or CI is set with GitLab-specific vars
-  if (process.env.GITLAB_CI || (process.env.CI && process.env.CI_COMMIT_SHA)) {
-    console.log(chalk.green('   [DEBUG] detectEnvironment: Detected GITLAB_CI'));
-    return 'gitlab';
-  }
-  
-  // Local development: none of the above
-  console.log(chalk.yellow('   [DEBUG] detectEnvironment: No CI env vars detected - returning "local"'));
+  if (process.env.VERCEL) return 'vercel';
+  if (process.env.GITHUB_ACTIONS) return 'github';
+  if (process.env.GITLAB_CI || (process.env.CI && process.env.CI_COMMIT_SHA)) return 'gitlab';
   return 'local';
 }
 
@@ -158,6 +144,16 @@ export async function checkCommand(options: {
           console.log(chalk.gray(`📝 Collecting git changes for branch: ${autoTarget.value}...`));
           gitDiff = await getBranchDiff(repoRoot, autoTarget.value!);
           reviewContext = { type: 'branch', value: autoTarget.value };
+          // Capture commit SHA from CI env vars if available
+          if (process.env.GITHUB_SHA) {
+            commitSha = process.env.GITHUB_SHA;
+            const message = await getCommitMessage(repoRoot, process.env.GITHUB_SHA);
+            if (message) commitMessage = message;
+          } else if (process.env.VERCEL_GIT_COMMIT_SHA) {
+            commitSha = process.env.VERCEL_GIT_COMMIT_SHA;
+            const message = await getCommitMessage(repoRoot, process.env.VERCEL_GIT_COMMIT_SHA);
+            if (message) commitMessage = message;
+          }
         } else if (autoTarget.type === 'commit') {
           // Commit: use single commit
           console.log(chalk.gray(`📝 Collecting git changes for commit: ${autoTarget.value}...`));
@@ -224,18 +220,6 @@ export async function checkCommand(options: {
     });
 
     // 4. Get repo name and branch name
-    console.log(chalk.gray('\n📡 Detecting repository and branch information...'));
-    
-    // Log Vercel-specific env vars that might help with repo detection
-    if (process.env.VERCEL) {
-      console.log(chalk.gray('   [DEBUG] Vercel environment variables:'));
-      console.log(chalk.gray(`   [DEBUG]   VERCEL_GIT_REPO_OWNER = "${process.env.VERCEL_GIT_REPO_OWNER || 'NOT SET'}"`));
-      console.log(chalk.gray(`   [DEBUG]   VERCEL_GIT_REPO_SLUG = "${process.env.VERCEL_GIT_REPO_SLUG || 'NOT SET'}"`));
-      console.log(chalk.gray(`   [DEBUG]   VERCEL_GIT_REPO_ID = "${process.env.VERCEL_GIT_REPO_ID || 'NOT SET'}"`));
-      console.log(chalk.gray(`   [DEBUG]   VERCEL_GIT_COMMIT_REF = "${process.env.VERCEL_GIT_COMMIT_REF || 'NOT SET'}"`));
-      console.log(chalk.gray(`   [DEBUG]   VERCEL_GIT_COMMIT_SHA = "${process.env.VERCEL_GIT_COMMIT_SHA || 'NOT SET'}"`));
-    }
-    
     const repoName = await getRepoName(repoRoot);
     const branchName = await getBranchName(repoRoot);
 
@@ -245,21 +229,10 @@ export async function checkCommand(options: {
                    'https://devthreadline.com';
 
     // 6. Detect environment
-    console.log(chalk.gray('\n🌍 Detecting environment...'));
     const environment = detectEnvironment();
 
-    // 7. Log final values being sent to API
-    console.log(chalk.gray('\n📤 Final values being sent to API:'));
-    console.log(chalk.gray(`   repoName: ${repoName ? `"${repoName}"` : 'null/undefined'}`));
-    console.log(chalk.gray(`   branchName: ${branchName ? `"${branchName}"` : 'null/undefined'}`));
-    console.log(chalk.gray(`   commitSha: ${commitSha ? `"${commitSha}"` : 'null/undefined'}`));
-    console.log(chalk.gray(`   commitMessage: ${commitMessage ? `"${commitMessage.substring(0, 50)}..."` : 'null/undefined'}`));
-    console.log(chalk.gray(`   prTitle: ${prTitle ? `"${prTitle}"` : 'null/undefined'}`));
-    console.log(chalk.gray(`   environment: "${environment}"`));
-    console.log(chalk.gray(`   reviewContext: ${JSON.stringify(reviewContext)}`));
-
-    // 8. Call review API
-    console.log(chalk.gray('\n🤖 Running threadline checks...'));
+    // 7. Call review API
+    console.log(chalk.gray('🤖 Running threadline checks...'));
     const client = new ReviewAPIClient(apiUrl);
     const response = await client.review({
       threadlines: threadlinesWithContext,

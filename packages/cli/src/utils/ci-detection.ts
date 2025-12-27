@@ -1,139 +1,80 @@
-import chalk from 'chalk';
-
 /**
  * Detects CI environment and returns review target information.
  * 
- * Priority:
- * 1. PR/MR detected → use PR/MR branches (target...source)
- * 2. Branch detected → use branch (all commits vs base)
- * 3. Commit SHA detected → use commit (single commit)
- * 4. Local development → return null (use staged/unstaged)
+ * CI Environment Variables:
+ * - GitHub Actions PR: GITHUB_EVENT_NAME="pull_request", GITHUB_BASE_REF, GITHUB_HEAD_REF, GITHUB_EVENT_NUMBER
+ * - GitHub Actions Branch: GITHUB_REF_NAME
+ * - GitHub Actions Commit: GITHUB_SHA
+ * - Vercel Branch: VERCEL_GIT_COMMIT_REF
+ * - Vercel Commit: VERCEL_GIT_COMMIT_SHA
+ * - GitLab CI MR: CI_MERGE_REQUEST_IID, CI_MERGE_REQUEST_TARGET_BRANCH_NAME, CI_MERGE_REQUEST_SOURCE_BRANCH_NAME, CI_MERGE_REQUEST_TITLE
+ * - GitLab CI Branch: CI_COMMIT_REF_NAME
+ * - GitLab CI Commit: CI_COMMIT_SHA
  */
 export interface AutoReviewTarget {
   type: 'pr' | 'mr' | 'branch' | 'commit' | 'local';
   value?: string;
-  // For PR/MR: both source and target branches
   sourceBranch?: string;
   targetBranch?: string;
-  // For MR: title from GitLab CI (reliable env var)
   prTitle?: string;
 }
 
 export function getAutoReviewTarget(): AutoReviewTarget | null {
-  console.log(chalk.gray('   [DEBUG] getAutoReviewTarget: Starting detection...'));
-  
-  // Log ALL GitHub Actions env vars that start with GITHUB_ to see what's available
-  if (process.env.GITHUB_ACTIONS) {
-    console.log(chalk.gray('   [DEBUG] getAutoReviewTarget: All GITHUB_* env vars:'));
-    const githubVars = Object.keys(process.env)
-      .filter(key => key.startsWith('GITHUB_'))
-      .sort();
-    githubVars.forEach(key => {
-      const value = process.env[key];
-      // Truncate long values for readability
-      const displayValue = value && value.length > 100 ? value.substring(0, 100) + '...' : value;
-      console.log(chalk.gray(`     ${key} = "${displayValue || 'NOT SET'}"`));
-    });
-  }
-  
-  // 1. Check for PR/MR context (most authoritative)
-  
-  // GitHub Actions PR
-  console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: Checking GitHub Actions PR...`));
-  console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: GITHUB_EVENT_NAME = "${process.env.GITHUB_EVENT_NAME || 'NOT SET'}"`));
-  
+  // 1. PR/MR context
   if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
     const targetBranch = process.env.GITHUB_BASE_REF;
     const sourceBranch = process.env.GITHUB_HEAD_REF;
-    // Try multiple possible env var names for PR number
-    const prNumber = process.env.GITHUB_EVENT_PULL_REQUEST_NUMBER || 
-                     process.env.GITHUB_PR_NUMBER ||
-                     process.env.GITHUB_EVENT_NUMBER;
+    const prNumber = process.env.GITHUB_EVENT_PULL_REQUEST_NUMBER || process.env.GITHUB_EVENT_NUMBER;
     
-    console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: GITHUB_BASE_REF = "${targetBranch || 'NOT SET'}"`));
-    console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: GITHUB_HEAD_REF = "${sourceBranch || 'NOT SET'}"`));
-    console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: GITHUB_EVENT_PULL_REQUEST_NUMBER = "${process.env.GITHUB_EVENT_PULL_REQUEST_NUMBER || 'NOT SET'}"`));
-    console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: GITHUB_EVENT_NUMBER = "${process.env.GITHUB_EVENT_NUMBER || 'NOT SET'}"`));
+    // Log PR detection for verification (remove after confirming it works)
+    console.log(`[PR Detection] GITHUB_BASE_REF=${targetBranch || 'NOT SET'}, GITHUB_HEAD_REF=${sourceBranch || 'NOT SET'}, PR_NUMBER=${prNumber || 'NOT SET'}`);
     
     if (targetBranch && sourceBranch && prNumber) {
-      console.log(chalk.green(`   [DEBUG] getAutoReviewTarget: Detected GitHub PR #${prNumber}`));
       return {
         type: 'pr',
         value: prNumber,
         sourceBranch,
         targetBranch
       };
-    } else {
-      console.log(chalk.yellow('   [DEBUG] getAutoReviewTarget: GitHub PR env vars incomplete'));
     }
   }
-  
-  // GitLab CI MR
-  console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: Checking GitLab CI MR...`));
-  console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: CI_MERGE_REQUEST_IID = "${process.env.CI_MERGE_REQUEST_IID || 'NOT SET'}"`));
   
   if (process.env.CI_MERGE_REQUEST_IID) {
     const targetBranch = process.env.CI_MERGE_REQUEST_TARGET_BRANCH_NAME;
     const sourceBranch = process.env.CI_MERGE_REQUEST_SOURCE_BRANCH_NAME;
     const mrNumber = process.env.CI_MERGE_REQUEST_IID;
-    const mrTitle = process.env.CI_MERGE_REQUEST_TITLE; // Reliable GitLab CI env var
-    
-    console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: CI_MERGE_REQUEST_TARGET_BRANCH_NAME = "${targetBranch || 'NOT SET'}"`));
-    console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: CI_MERGE_REQUEST_SOURCE_BRANCH_NAME = "${sourceBranch || 'NOT SET'}"`));
-    console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: CI_MERGE_REQUEST_TITLE = "${mrTitle || 'NOT SET'}"`));
+    const mrTitle = process.env.CI_MERGE_REQUEST_TITLE;
     
     if (targetBranch && sourceBranch && mrNumber) {
-      console.log(chalk.green(`   [DEBUG] getAutoReviewTarget: Detected GitLab MR #${mrNumber}`));
       return {
         type: 'mr',
         value: mrNumber,
         sourceBranch,
         targetBranch,
-        prTitle: mrTitle || undefined // Only include if present
+        prTitle: mrTitle || undefined
       };
-    } else {
-      console.log(chalk.yellow('   [DEBUG] getAutoReviewTarget: GitLab MR env vars incomplete'));
     }
   }
   
-  // 2. Check for branch name (CI with branch)
-  console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: Checking branch env vars...`));
-  console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: GITHUB_REF_NAME = "${process.env.GITHUB_REF_NAME || 'NOT SET'}"`));
-  console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: CI_COMMIT_REF_NAME = "${process.env.CI_COMMIT_REF_NAME || 'NOT SET'}"`));
-  console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: VERCEL_GIT_COMMIT_REF = "${process.env.VERCEL_GIT_COMMIT_REF || 'NOT SET'}"`));
-  
-  const branch = process.env.GITHUB_REF_NAME ||           // GitHub Actions
-                 process.env.CI_COMMIT_REF_NAME ||          // GitLab CI
-                 process.env.VERCEL_GIT_COMMIT_REF;         // Vercel
+  // 2. Branch name
+  const branch = process.env.GITHUB_REF_NAME ||
+                 process.env.CI_COMMIT_REF_NAME ||
+                 process.env.VERCEL_GIT_COMMIT_REF;
   
   if (branch) {
-    console.log(chalk.green(`   [DEBUG] getAutoReviewTarget: Detected branch "${branch}"`));
-    return {
-      type: 'branch',
-      value: branch
-    };
+    return { type: 'branch', value: branch };
   }
   
-  // 3. Check for commit SHA (CI without branch)
-  console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: Checking commit SHA env vars...`));
-  console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: GITHUB_SHA = "${process.env.GITHUB_SHA || 'NOT SET'}"`));
-  console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: CI_COMMIT_SHA = "${process.env.CI_COMMIT_SHA || 'NOT SET'}"`));
-  console.log(chalk.gray(`   [DEBUG] getAutoReviewTarget: VERCEL_GIT_COMMIT_SHA = "${process.env.VERCEL_GIT_COMMIT_SHA || 'NOT SET'}"`));
-  
-  const commit = process.env.GITHUB_SHA ||                 // GitHub Actions
-                 process.env.CI_COMMIT_SHA ||              // GitLab CI
-                 process.env.VERCEL_GIT_COMMIT_SHA;        // Vercel
+  // 3. Commit SHA
+  const commit = process.env.GITHUB_SHA ||
+                 process.env.CI_COMMIT_SHA ||
+                 process.env.VERCEL_GIT_COMMIT_SHA;
   
   if (commit) {
-    console.log(chalk.green(`   [DEBUG] getAutoReviewTarget: Detected commit "${commit}"`));
-    return {
-      type: 'commit',
-      value: commit
-    };
+    return { type: 'commit', value: commit };
   }
   
-  // 4. Local development (no CI env vars)
-  console.log(chalk.yellow('   [DEBUG] getAutoReviewTarget: No CI env vars detected - returning null (local mode)'));
+  // 4. Local development
   return null;
 }
 

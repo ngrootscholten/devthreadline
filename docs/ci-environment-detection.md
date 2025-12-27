@@ -106,11 +106,12 @@ Final values:
 - reviewContext: {"type":"local"} ❌ (should be "branch" because branchName is null)
 ```
 
-**Status**: ❌ Needs fixes
-- Git remotes not available (0 remotes found)
-- Git branch detection returns "master" instead of "main"
+**Status**: ✅ Fixes implemented (pending verification)
+- ✅ **Fixed**: Repo name now uses Vercel env vars (`VERCEL_GIT_REPO_OWNER` + `VERCEL_GIT_REPO_SLUG`)
+- ✅ **Fixed**: Branch name now uses Vercel env var (`VERCEL_GIT_COMMIT_REF`)
 - ✅ Environment detection works correctly
 - ✅ Vercel env vars are available and correct
+- ⏳ **Pending**: Verify fixes work in next Vercel build
 
 ### Strategy
 
