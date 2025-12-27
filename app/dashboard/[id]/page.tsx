@@ -4,6 +4,8 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { Diff, Hunk, parseDiff } from "react-diff-view";
+import "react-diff-view/style/index.css";
 
 interface CheckDetail {
   id: string;
@@ -274,16 +276,63 @@ export default function CheckDetailPage() {
           </div>
 
           {/* Diff Content */}
-          {check.diff && (
-            <div>
-              <h2 className="text-2xl font-semibold text-white mb-4">Diff</h2>
-              <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 overflow-x-auto">
-                <pre className="text-sm text-slate-300 font-mono whitespace-pre-wrap">
-                  {check.diff}
-                </pre>
-              </div>
-            </div>
-          )}
+          {check.diff && (() => {
+            try {
+              const files = parseDiff(check.diff);
+              if (files.length === 0) return null;
+              
+              return (
+                <div>
+                  <h2 className="text-2xl font-semibold text-white mb-4">
+                    Diff ({files.length} {files.length === 1 ? 'file' : 'files'})
+                  </h2>
+                  <div className="space-y-4">
+                    {files.map((file, fileIdx) => (
+                      <details key={fileIdx} open className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden group">
+                        <summary className="bg-slate-800 px-4 py-2 cursor-pointer hover:bg-slate-750 select-none flex items-center gap-2">
+                          <span className="text-slate-400 group-open:rotate-90 transition-transform">▶</span>
+                          <span className="text-sm font-mono text-slate-300">
+                            {file.newPath || file.oldPath || 'Unknown file'}
+                          </span>
+                        </summary>
+                        <div className="p-4 overflow-x-auto">
+                          <Diff
+                            viewType="unified"
+                            diffType={file.type}
+                            hunks={file.hunks}
+                          >
+                            {(hunks) =>
+                              hunks.map((hunk, idx) => (
+                                <Hunk key={idx} hunk={hunk} />
+                              ))
+                            }
+                          </Diff>
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                </div>
+              );
+            } catch (error) {
+              console.error('Failed to parse diff:', error);
+              return (
+                <div>
+                  <h2 className="text-2xl font-semibold text-white mb-4">Diff</h2>
+                  <div className="bg-red-950 border border-red-800 rounded-lg p-4 mb-4">
+                    <p className="text-red-400 font-semibold">
+                      ⚠️ Parsing diff failed: {error instanceof Error ? error.message : 'Unknown error'}
+                    </p>
+                  </div>
+                  <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 overflow-x-auto">
+                    <p className="text-slate-400 text-sm mb-2">Raw diff content:</p>
+                    <pre className="text-sm text-slate-300 font-mono whitespace-pre-wrap">
+                      {check.diff}
+                    </pre>
+                  </div>
+                </div>
+              );
+            }
+          })()}
         </div>
       </section>
     </main>
