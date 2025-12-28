@@ -28,28 +28,22 @@ expires TIMESTAMP NOT NULL
 
 ### 2. Column Naming Convention
 
-**Constraint:** All columns must be snake_case (lowercase only, underscores between words). The only exception is NextAuth system columns, which must be "quotedCamelCase".
+**STRICT RULE: Use snake_case only. A name is invalid if it contains ANY uppercase letters.**
 
-**Validation Checklist for the LLM:**
+**Evaluation Logic:**
 
-- Does the column name contain any uppercase letters?
-  - If yes and it is NOT inside double quotes, it is a VIOLATION.
-- Does the column name use camelCase (e.g., filteredDiff)?
-  - If yes, it is a VIOLATION.
+- Is there an uppercase letter (A-Z) in the name?
+  - If YES (and not in double quotes): It is a VIOLATION.
+  - If NO: It is COMPLIANT.
 
-```sql
--- ✅ Good: lowercase_with_underscores
-relevant_files JSONB
-filtered_diff TEXT
-created_at TIMESTAMPTZ
-"emailVerified" TIMESTAMPTZ  -- Exception: Quoted NextAuth
+**Examples of the logic:**
 
--- ❌ Bad: Contains uppercase or lacks underscores
-relevantFiles JSONB          -- camelCase (Illegal)
-Relevant_Files JSONB         -- PascalCase (Illegal)
-filteredDiff TEXT            -- camelCase (Illegal)
-relevantfiles JSONB          -- Hard to read (Should be relevant_files)
-```
+- ✅ COMPLIANT: `abc_def_ghi` (No uppercase letters)
+- ✅ COMPLIANT: `x_y_z` (No uppercase letters)
+- ❌ VIOLATION: `abcDefGhi` (Contains uppercase 'D' and 'G')
+- ❌ VIOLATION: `X_y_z` (Contains uppercase 'X')
+
+**Note on NextAuth:** Only columns wrapped in double-quotes like `"emailVerified"` may contain uppercase letters.
 
 ### 3. Row Level Security (RLS) Must Be Enabled
 
