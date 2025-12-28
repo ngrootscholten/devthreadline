@@ -104,15 +104,18 @@ export async function getBranchDiff(
   }
   
   // Helper function to detect base branch
+  // Returns the branch name to use in git commands (may be local or remote)
   async function detectBaseBranch(git: SimpleGit, branchName: string): Promise<string> {
     // Try upstream tracking branch
     const upstream = await git.revparse(['--abbrev-ref', '--symbolic-full-name', `${branchName}@{u}`]).catch(() => null);
     if (upstream) {
-      // Extract base from upstream (e.g., "origin/main" -> "main")
+      // Extract base from upstream (e.g., "origin/main" -> check if local exists, else use "origin/main")
       const upstreamBranch = upstream.replace(/^origin\//, '');
       // Don't use the branch itself as its base
       if (upstreamBranch !== branchName) {
-        return upstreamBranch;
+        // Check if local branch exists, otherwise use remote
+        const localExists = await git.revparse([upstreamBranch]).catch(() => null);
+        return localExists ? upstreamBranch : upstream;
       }
     }
     
@@ -122,7 +125,9 @@ export async function getBranchDiff(
       const defaultBranchName = defaultBranch.replace(/^origin\//, '');
       // Don't use the branch itself as its base
       if (defaultBranchName !== branchName) {
-        return defaultBranchName;
+        // Check if local branch exists, otherwise use remote
+        const localExists = await git.revparse([defaultBranchName]).catch(() => null);
+        return localExists ? defaultBranchName : defaultBranch;
       }
     } catch {
       // Continue to fallback
@@ -135,8 +140,11 @@ export async function getBranchDiff(
         continue; // Skip if it's the same branch
       }
       try {
+        // Check if remote exists
         await git.revparse([`origin/${candidate}`]);
-        return candidate;
+        // Check if local exists, otherwise use remote
+        const localExists = await git.revparse([candidate]).catch(() => null);
+        return localExists ? candidate : `origin/${candidate}`;
       } catch {
         // Try next
       }
