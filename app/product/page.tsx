@@ -132,7 +132,7 @@ All feature flags must:
         <div className="max-w-7xl mx-auto px-6 py-12">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="text-slate-500">
-              <p>Threadline - Code Quality That Actually Works</p>
+              <p>Threadline - Active Documentation, Parallel AI Checks, and Full Auditability</p>
             </div>
             <div>
               <Link

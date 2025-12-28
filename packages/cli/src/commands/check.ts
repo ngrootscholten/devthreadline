@@ -1,34 +1,16 @@
 import { findThreadlines } from '../validators/experts';
-import { getGitDiff, getBranchDiff, getCommitDiff, getPRMRDiff, getCommitMessage } from '../git/diff';
+import { getCommitMessage } from '../git/diff';
 import { getFileContent, getFolderContent, getMultipleFilesContent } from '../git/file';
 import { getRepoName, getBranchName } from '../git/repo';
-import { getAutoReviewTarget } from '../utils/ci-detection';
 import { ReviewAPIClient, ExpertResult } from '../api/client';
 import { getThreadlineApiKey, getThreadlineAccount } from '../utils/config';
+import { detectEnvironment } from '../utils/environment';
+import { detectContext, ReviewContext } from '../utils/context';
+import { collectMetadata } from '../utils/metadata';
+import { getDiffForContext, getContextDescription } from '../utils/git-diff-executor';
 import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
-
-/**
- * Detect the environment where the check is being run.
- * 
- * CI Environment Detection:
- * - Vercel: VERCEL=1
- * - GitHub Actions: GITHUB_ACTIONS=1
- * - GitLab CI: GITLAB_CI=1 or (CI=1 + CI_COMMIT_SHA)
- * - Local: None of the above
- * 
- * Available CI Environment Variables:
- * - GitHub Actions: GITHUB_REPOSITORY, GITHUB_REF_NAME, GITHUB_SHA, GITHUB_BASE_REF, GITHUB_HEAD_REF
- * - Vercel: VERCEL_GIT_REPO_OWNER, VERCEL_GIT_REPO_SLUG, VERCEL_GIT_COMMIT_REF, VERCEL_GIT_COMMIT_SHA
- * - GitLab CI: CI_COMMIT_REF_NAME, CI_COMMIT_SHA, CI_MERGE_REQUEST_IID, CI_MERGE_REQUEST_TITLE
- */
-function detectEnvironment(): string {
-  if (process.env.VERCEL) return 'vercel';
-  if (process.env.GITHUB_ACTIONS) return 'github';
-  if (process.env.GITLAB_CI || (process.env.CI && process.env.CI_COMMIT_SHA)) return 'gitlab';
-  return 'local';
-}
 
 export async function checkCommand(options: { 
   apiUrl?: string; 
@@ -83,12 +65,10 @@ export async function checkCommand(options: {
       process.exit(0);
     }
 
-    // 2. Determine review target and get git diff
+    // 2. Detect environment and context
+    const environment = detectEnvironment();
+    let context: ReviewContext;
     let gitDiff: { diff: string; changedFiles: string[] };
-    let reviewContext: { type: string; value?: string } = { type: 'local' };
-    let commitSha: string | undefined = undefined;
-    let commitMessage: string | undefined = undefined;
-    let prTitle: string | undefined = undefined;
     
     // Validate mutually exclusive flags
     const explicitFlags = [options.branch, options.commit, options.file, options.folder, options.files].filter(Boolean);
@@ -102,80 +82,33 @@ export async function checkCommand(options: {
     if (options.file) {
       console.log(chalk.gray(`📝 Reading file: ${options.file}...`));
       gitDiff = await getFileContent(repoRoot, options.file);
-      reviewContext = { type: 'file', value: options.file };
+      context = { type: 'local' }; // File context doesn't need git context
     } else if (options.folder) {
       console.log(chalk.gray(`📝 Reading folder: ${options.folder}...`));
       gitDiff = await getFolderContent(repoRoot, options.folder);
-      reviewContext = { type: 'folder', value: options.folder };
+      context = { type: 'local' };
     } else if (options.files && options.files.length > 0) {
       console.log(chalk.gray(`📝 Reading ${options.files.length} file(s)...`));
       gitDiff = await getMultipleFilesContent(repoRoot, options.files);
-      reviewContext = { type: 'files', value: options.files.join(', ') };
+      context = { type: 'local' };
     } else if (options.branch) {
       console.log(chalk.gray(`📝 Collecting git changes for branch: ${options.branch}...`));
-      gitDiff = await getBranchDiff(repoRoot, options.branch);
-      reviewContext = { type: 'branch', value: options.branch };
+      context = { type: 'branch', branchName: options.branch };
+      gitDiff = await getDiffForContext(context, repoRoot, environment);
     } else if (options.commit) {
       console.log(chalk.gray(`📝 Collecting git changes for commit: ${options.commit}...`));
-      gitDiff = await getCommitDiff(repoRoot, options.commit);
-      reviewContext = { type: 'commit', value: options.commit };
-      commitSha = options.commit;
-      // Fetch commit message (reliable when we have SHA)
-      const message = await getCommitMessage(repoRoot, options.commit);
-      if (message) {
-        commitMessage = message;
-      }
+      context = { type: 'commit', commitSha: options.commit };
+      gitDiff = await getDiffForContext(context, repoRoot, environment);
     } else {
-      // Auto-detect CI environment or use local changes
-      const autoTarget = getAutoReviewTarget();
-      
-      if (autoTarget) {
-        if (autoTarget.type === 'pr' || autoTarget.type === 'mr') {
-          // PR/MR: use source and target branches
-          console.log(chalk.gray(`📝 Collecting git changes for ${autoTarget.type.toUpperCase()}: ${autoTarget.value}...`));
-          gitDiff = await getPRMRDiff(repoRoot, autoTarget.sourceBranch!, autoTarget.targetBranch!);
-          reviewContext = { type: autoTarget.type, value: autoTarget.value };
-          // Use PR title from GitLab CI (reliable env var)
-          if (autoTarget.prTitle) {
-            prTitle = autoTarget.prTitle;
-          }
-        } else if (autoTarget.type === 'branch') {
-          // Branch: use branch vs base
-          console.log(chalk.gray(`📝 Collecting git changes for branch: ${autoTarget.value}...`));
-          gitDiff = await getBranchDiff(repoRoot, autoTarget.value!);
-          reviewContext = { type: 'branch', value: autoTarget.value };
-          // Capture commit SHA from CI env vars if available
-          if (process.env.GITHUB_SHA) {
-            commitSha = process.env.GITHUB_SHA;
-            const message = await getCommitMessage(repoRoot, process.env.GITHUB_SHA);
-            if (message) commitMessage = message;
-          } else if (process.env.VERCEL_GIT_COMMIT_SHA) {
-            commitSha = process.env.VERCEL_GIT_COMMIT_SHA;
-            const message = await getCommitMessage(repoRoot, process.env.VERCEL_GIT_COMMIT_SHA);
-            if (message) commitMessage = message;
-          }
-        } else if (autoTarget.type === 'commit') {
-          // Commit: use single commit
-          console.log(chalk.gray(`📝 Collecting git changes for commit: ${autoTarget.value}...`));
-          gitDiff = await getCommitDiff(repoRoot, autoTarget.value!);
-          reviewContext = { type: 'commit', value: autoTarget.value };
-          commitSha = autoTarget.value;
-          // Fetch commit message (reliable when we have SHA)
-          const message = await getCommitMessage(repoRoot, autoTarget.value!);
-          if (message) {
-            commitMessage = message;
-          }
-        } else {
-          // Fallback: local development
-          console.log(chalk.gray('📝 Collecting git changes...'));
-          gitDiff = await getGitDiff(repoRoot);
-        }
-      } else {
-        // Local development: use staged/unstaged changes
-        console.log(chalk.gray('📝 Collecting git changes...'));
-        gitDiff = await getGitDiff(repoRoot);
-      }
+      // Auto-detect context based on environment
+      context = detectContext(environment);
+      const contextDesc = getContextDescription(context);
+      console.log(chalk.gray(`📝 Collecting git changes for ${contextDesc}...`));
+      gitDiff = await getDiffForContext(context, repoRoot, environment);
     }
+    
+    // 3. Collect metadata (commit SHA, commit message, PR title)
+    const metadata = await collectMetadata(context, environment, repoRoot);
     
     if (gitDiff.changedFiles.length === 0) {
       console.log(chalk.yellow('⚠️  No changes detected. Make some code changes and try again.'));
@@ -228,10 +161,7 @@ export async function checkCommand(options: {
                    process.env.THREADLINE_API_URL || 
                    'https://devthreadline.com';
 
-    // 6. Detect environment
-    const environment = detectEnvironment();
-
-    // 7. Call review API
+    // 6. Call review API
     console.log(chalk.gray('🤖 Running threadline checks...'));
     const client = new ReviewAPIClient(apiUrl);
     const response = await client.review({
@@ -242,9 +172,9 @@ export async function checkCommand(options: {
       account,
       repoName: repoName || undefined,
       branchName: branchName || undefined,
-      commitSha: commitSha,
-      commitMessage: commitMessage,
-      prTitle: prTitle,
+      commitSha: metadata.commitSha,
+      commitMessage: metadata.commitMessage,
+      prTitle: metadata.prTitle,
       environment: environment
     });
 
