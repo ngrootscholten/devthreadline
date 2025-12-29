@@ -5,46 +5,6 @@ export interface GitDiffResult {
   changedFiles: string[];
 }
 
-/**
- * Get diff for staged/unstaged changes (current behavior)
- */
-export async function getGitDiff(repoRoot: string): Promise<GitDiffResult> {
-  const git: SimpleGit = simpleGit(repoRoot);
-
-  // Check if we're in a git repo
-  const isRepo = await git.checkIsRepo();
-  if (!isRepo) {
-    throw new Error('Not a git repository. Threadline requires a git repository.');
-  }
-
-  // Get diff (staged changes, or unstaged if no staged)
-  const status = await git.status();
-  
-  let diff: string;
-  if (status.staged.length > 0) {
-    // Use staged changes
-    diff = await git.diff(['--cached', '-U200']);
-  } else if (status.files.length > 0) {
-    // Use unstaged changes
-    diff = await git.diff(['-U200']);
-  } else {
-    // No changes
-    return {
-      diff: '',
-      changedFiles: []
-    };
-  }
-
-  // Get list of changed files
-  const changedFiles = status.files
-    .filter(f => f.working_dir !== ' ' || f.index !== ' ')
-    .map(f => f.path);
-
-  return {
-    diff: diff || '',
-    changedFiles
-  };
-}
 
 /**
  * Get diff for a specific branch (all commits vs base branch)

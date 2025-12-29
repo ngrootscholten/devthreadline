@@ -101,18 +101,23 @@ export async function checkCommand(options: {
       gitDiff = await getDiffForContext(context, repoRoot, environment);
     } else {
       // Auto-detect: Use environment-specific implementation
+      const envNames: Record<string, string> = {
+        vercel: 'Vercel',
+        github: 'GitHub',
+        gitlab: 'GitLab',
+        local: 'Local'
+      };
+      console.log(chalk.gray(`📝 Collecting git changes for ${envNames[environment]}...`));
+      gitDiff = await getDiffForEnvironment(environment, repoRoot);
+      // Create context for metadata collection
       if (environment === 'vercel') {
-        // Vercel: Direct environment-based routing (single implementation)
-        console.log(chalk.gray(`📝 Collecting git changes for Vercel commit...`));
-        gitDiff = await getDiffForEnvironment(environment, repoRoot);
-        // Vercel uses commit context, but we don't need to create it explicitly
         context = { type: 'commit', commitSha: process.env.VERCEL_GIT_COMMIT_SHA! };
-      } else {
-        // Other environments: Use context-based routing (legacy)
+      } else if (environment === 'github' || environment === 'gitlab') {
+        // GitHub/GitLab: Detect context for metadata (but diff already obtained)
         context = detectContext(environment);
-        const contextDesc = getContextDescription(context);
-        console.log(chalk.gray(`📝 Collecting git changes for ${contextDesc}...`));
-        gitDiff = await getDiffForContext(context, repoRoot, environment);
+      } else {
+        // Local: Use local context
+        context = { type: 'local' };
       }
     }
     
