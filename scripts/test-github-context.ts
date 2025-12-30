@@ -68,11 +68,12 @@ async function main() {
   console.log(`Commit date: ${runCommand('git log -1 --format=%ai')}`);
   
   console.log('\n--- Commit Parents (for merge detection) ---');
-  const parentCount = runCommand('git rev-list --count --parents HEAD');
-  console.log(`Parent count: ${parentCount}`);
   const parentShas = runCommand('git log -1 --format=%P');
   console.log(`Parent SHAs: ${parentShas || '(none - initial commit)'}`);
-  const isMergeCommit = parseInt(parentCount) > 1;
+  // Count parents by splitting the parent SHAs string
+  const parentCount = parentShas ? parentShas.split(/\s+/).filter(s => s.length > 0).length : 0;
+  console.log(`Parent count: ${parentCount}`);
+  const isMergeCommit = parentCount > 1;
   console.log(`Is merge commit: ${isMergeCommit ? 'YES ✅' : 'NO'}`);
   
   if (isMergeCommit) {

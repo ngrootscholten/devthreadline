@@ -28,7 +28,7 @@ export default function RootLayout({
                 </Link>
                 <div className="flex items-center gap-6">
                   <Link href="/product" className="text-slate-300 hover:text-white transition-colors">
-                    How It Works - First COMMIT
+                    How It Works - First COMMIT SECOND COMMIT
                   </Link>
                   <UserMenu />
                 </div>
