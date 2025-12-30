@@ -124,7 +124,7 @@ export default function Home() {
       <footer className="border-t border-slate-800 mt-24">
         <div className="max-w-7xl mx-auto px-6 py-12">
           <div className="text-center text-slate-500">
-            <p>Threadline - Active Documentation, Parallel AI Checks, and Full Auditability</p>
+            <p>Threadline - Active Documentation, Parallel AI Checks, and Full Auditability!</p>
           </div>
         </div>
       </footer>
