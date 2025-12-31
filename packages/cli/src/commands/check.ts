@@ -1,13 +1,13 @@
 import { findThreadlines } from '../validators/experts';
 import { getCommitMessage } from '../git/diff';
 import { getFileContent, getFolderContent, getMultipleFilesContent } from '../git/file';
-import { getRepoName, getBranchName } from '../git/repo';
 import { ReviewAPIClient, ExpertResult } from '../api/client';
 import { getThreadlineApiKey, getThreadlineAccount } from '../utils/config';
 import { detectEnvironment } from '../utils/environment';
 import { detectContext, ReviewContext } from '../utils/context';
 import { collectMetadata } from '../utils/metadata';
 import { getDiffForContext, getDiffForEnvironment, getContextDescription } from '../utils/git-diff-executor';
+import { getGitContextForEnvironment, GitContext } from '../git/context';
 import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
@@ -69,6 +69,8 @@ export async function checkCommand(options: {
     const environment = detectEnvironment();
     let context: ReviewContext;
     let gitDiff: { diff: string; changedFiles: string[] };
+    let repoName: string | undefined;
+    let branchName: string | undefined;
     
     // Validate mutually exclusive flags
     const explicitFlags = [options.branch, options.commit, options.file, options.folder, options.files].filter(Boolean);
@@ -83,32 +85,49 @@ export async function checkCommand(options: {
       console.log(chalk.gray(`📝 Reading file: ${options.file}...`));
       gitDiff = await getFileContent(repoRoot, options.file);
       context = { type: 'local' }; // File context doesn't need git context
+      // For file/folder/files, repo/branch are not available - skip them
     } else if (options.folder) {
       console.log(chalk.gray(`📝 Reading folder: ${options.folder}...`));
       gitDiff = await getFolderContent(repoRoot, options.folder);
       context = { type: 'local' };
+      // For file/folder/files, repo/branch are not available - skip them
     } else if (options.files && options.files.length > 0) {
       console.log(chalk.gray(`📝 Reading ${options.files.length} file(s)...`));
       gitDiff = await getMultipleFilesContent(repoRoot, options.files);
       context = { type: 'local' };
+      // For file/folder/files, repo/branch are not available - skip them
     } else if (options.branch) {
       console.log(chalk.gray(`📝 Collecting git changes for branch: ${options.branch}...`));
       context = { type: 'branch', branchName: options.branch };
       gitDiff = await getDiffForContext(context, repoRoot, environment);
+      // Get repo/branch using unified approach
+      const gitContext = await getGitContextForEnvironment(environment, repoRoot);
+      repoName = gitContext.repoName;
+      branchName = gitContext.branchName;
     } else if (options.commit) {
       console.log(chalk.gray(`📝 Collecting git changes for commit: ${options.commit}...`));
       context = { type: 'commit', commitSha: options.commit };
       gitDiff = await getDiffForContext(context, repoRoot, environment);
+      // Get repo/branch using unified approach
+      const gitContext = await getGitContextForEnvironment(environment, repoRoot);
+      repoName = gitContext.repoName;
+      branchName = gitContext.branchName;
     } else {
-      // Auto-detect: Use environment-specific implementation
+      // Auto-detect: Use unified git context collection
       const envNames: Record<string, string> = {
         vercel: 'Vercel',
         github: 'GitHub',
         gitlab: 'GitLab',
         local: 'Local'
       };
-      console.log(chalk.gray(`📝 Collecting git changes for ${envNames[environment]}...`));
-      gitDiff = await getDiffForEnvironment(environment, repoRoot);
+      console.log(chalk.gray(`📝 Collecting git context for ${envNames[environment]}...`));
+      
+      // Use unified git context collection (diff + repo + branch)
+      const gitContext = await getGitContextForEnvironment(environment, repoRoot);
+      gitDiff = gitContext.diff;
+      repoName = gitContext.repoName;
+      branchName = gitContext.branchName;
+      
       // Create context for metadata collection
       if (environment === 'vercel') {
         context = { type: 'commit', commitSha: process.env.VERCEL_GIT_COMMIT_SHA! };
@@ -145,7 +164,7 @@ export async function checkCommand(options: {
     
     console.log(chalk.green(`✓ Found ${gitDiff.changedFiles.length} changed file(s)\n`));
 
-    // 3. Read context files for each threadline
+    // 4. Read context files for each threadline
     const threadlinesWithContext = threadlines.map(threadline => {
       const contextContent: Record<string, string> = {};
       
@@ -168,10 +187,6 @@ export async function checkCommand(options: {
       };
     });
 
-    // 4. Get repo name and branch name
-    const repoName = await getRepoName(repoRoot);
-    const branchName = await getBranchName(repoRoot);
-
     // 5. Get API URL
     const apiUrl = options.apiUrl || 
                    process.env.THREADLINE_API_URL || 
@@ -186,8 +201,8 @@ export async function checkCommand(options: {
       files: gitDiff.changedFiles,
       apiKey,
       account,
-      repoName: repoName || undefined,
-      branchName: branchName || undefined,
+      repoName: repoName,
+      branchName: branchName,
       commitSha: metadata.commitSha,
       commitMessage: metadata.commitMessage,
       prTitle: metadata.prTitle,
