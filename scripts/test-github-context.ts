@@ -108,6 +108,89 @@ async function main() {
   console.log(`origin/main exists: ${mainExists}`);
   const masterExists = runCommand('git rev-parse --verify origin/master 2>/dev/null && echo "YES" || echo "NO"');
   console.log(`origin/master exists: ${masterExists}`);
+  
+  console.log('\n--- Default Branch Detection ---');
+  
+  // Method 1: git symbolic-ref (local reference, may not be set)
+  console.log('\nMethod 1: git symbolic-ref refs/remotes/origin/HEAD');
+  const defaultBranchRef = runCommand('git symbolic-ref refs/remotes/origin/HEAD 2>&1');
+  if (defaultBranchRef.includes('fatal:') || defaultBranchRef.includes('not a symbolic ref') || defaultBranchRef.includes('ERROR')) {
+    console.log(`  Result: NOT SET`);
+    console.log(`  This means the default branch reference is not configured locally.`);
+  } else {
+    console.log(`  Result: ${defaultBranchRef}`);
+    // Extract branch name from refs/remotes/origin/main -> main
+    const branchMatch = defaultBranchRef.match(/refs\/remotes\/origin\/(.+)/);
+    if (branchMatch) {
+      console.log(`  Extracted default branch name: ${branchMatch[1]}`);
+    }
+  }
+  
+  // Method 2: git ls-remote --symref (queries remote directly, most reliable)
+  console.log('\nMethod 2: git ls-remote --symref origin HEAD');
+  const lsRemoteSymref = runCommand('git ls-remote --symref origin HEAD 2>&1');
+  if (lsRemoteSymref.includes('ERROR') || lsRemoteSymref.includes('fatal:')) {
+    console.log(`  Result: ERROR - ${lsRemoteSymref}`);
+  } else {
+    console.log(`  Result: ${lsRemoteSymref}`);
+    // Parse: ref: refs/heads/main	HEAD
+    const symrefMatch = lsRemoteSymref.match(/ref:\s+refs\/heads\/(\S+)/);
+    if (symrefMatch) {
+      console.log(`  Extracted default branch name: ${symrefMatch[1]}`);
+    }
+  }
+  
+  // Method 3: git remote show origin (may show HEAD branch)
+  console.log('\nMethod 3: git remote show origin');
+  const remoteShow = runCommand('git remote show origin 2>&1 | grep "HEAD branch"');
+  if (remoteShow.includes('ERROR') || remoteShow.includes('fatal:')) {
+    console.log(`  Result: ERROR - ${remoteShow}`);
+  } else if (remoteShow.trim()) {
+    console.log(`  Result: ${remoteShow.trim()}`);
+    // Parse: HEAD branch: main
+    const headMatch = remoteShow.match(/HEAD branch:\s+(\S+)/);
+    if (headMatch) {
+      console.log(`  Extracted default branch name: ${headMatch[1]}`);
+    }
+  } else {
+    console.log(`  Result: No HEAD branch information found`);
+  }
+  
+  // Method 4: Read GITHUB_EVENT_PATH JSON (GitHub Actions event data)
+  console.log('\nMethod 4: Read GITHUB_EVENT_PATH JSON');
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  if (eventPath) {
+    try {
+      const eventData = JSON.parse(fs.readFileSync(eventPath, 'utf-8'));
+      console.log(`  GITHUB_EVENT_PATH: ${eventPath}`);
+      
+      // Dump entire JSON for analysis (formatted for readability)
+      console.log('\n  --- Full Event JSON (for analysis) ---');
+      console.log(JSON.stringify(eventData, null, 2));
+      console.log('  --- End Event JSON ---\n');
+      
+      // Try to find default_branch in the event data
+      // It might be at: repository.default_branch, or pull_request.base.repo.default_branch, etc.
+      const defaultBranch = eventData.repository?.default_branch || 
+                           eventData.pull_request?.base?.repo?.default_branch ||
+                           eventData.pull_request?.base?.ref; // fallback to base ref
+      
+      if (defaultBranch) {
+        console.log(`  Found default_branch: ${defaultBranch}`);
+      } else {
+        console.log(`  default_branch not found in event JSON`);
+        console.log(`  Available keys in repository: ${eventData.repository ? Object.keys(eventData.repository).join(', ') : 'N/A'}`);
+        if (eventData.pull_request) {
+          console.log(`  Available keys in pull_request.base.repo: ${eventData.pull_request.base?.repo ? Object.keys(eventData.pull_request.base.repo).join(', ') : 'N/A'}`);
+        }
+      }
+    } catch (error: any) {
+      console.log(`  Result: ERROR reading event file - ${error.message}`);
+    }
+  } else {
+    console.log(`  GITHUB_EVENT_PATH: NOT SET`);
+    console.log(`  This environment variable is only available in GitHub Actions.`);
+  }
 
   // 4. Diff Tests
   logSection('Diff Tests');
