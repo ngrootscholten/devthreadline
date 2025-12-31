@@ -107,6 +107,20 @@ async function main() {
   console.log(`origin/main exists: ${mainExists}`);
   const masterExists = runCommand('git rev-parse --verify origin/master 2>/dev/null && echo "YES" || echo "NO"');
   console.log(`origin/master exists: ${masterExists}`);
+  
+  console.log('\n--- Default Branch Detection (git symbolic-ref) ---');
+  const defaultBranchRef = runCommand('git symbolic-ref refs/remotes/origin/HEAD 2>&1');
+  if (defaultBranchRef.includes('fatal:') || defaultBranchRef.includes('not a symbolic ref')) {
+    console.log(`git symbolic-ref refs/remotes/origin/HEAD: NOT SET`);
+    console.log(`  This means the default branch reference is not configured.`);
+  } else {
+    console.log(`git symbolic-ref refs/remotes/origin/HEAD: ${defaultBranchRef}`);
+    // Extract branch name from refs/remotes/origin/main -> main
+    const branchMatch = defaultBranchRef.match(/refs\/remotes\/origin\/(.+)/);
+    if (branchMatch) {
+      console.log(`  Extracted default branch name: ${branchMatch[1]}`);
+    }
+  }
 
   // 4. Diff Tests
   logSection('Diff Tests');
