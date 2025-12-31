@@ -12,6 +12,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
 
+// Get CLI version from package.json
+const packageJsonPath = path.join(__dirname, '../../package.json');
+const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+const CLI_VERSION = packageJson.version;
+
 export async function checkCommand(options: { 
   apiUrl?: string; 
   full?: boolean;
@@ -23,7 +28,7 @@ export async function checkCommand(options: {
 }) {
   const repoRoot = process.cwd();
   
-  console.log(chalk.blue('🔍 Threadline: Checking code against your threadlines...\n'));
+  console.log(chalk.blue(`🔍 Threadline CLI v${CLI_VERSION}: Checking code against your threadlines...\n`));
 
   // Pre-flight check: Validate ALL required environment variables at once
   const apiKey = getThreadlineApiKey();
