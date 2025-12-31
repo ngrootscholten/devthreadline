@@ -125,8 +125,10 @@ export async function checkCommand(options: {
     const metadata = await collectMetadata(context, environment, repoRoot);
     
     if (gitDiff.changedFiles.length === 0) {
-      console.log(chalk.yellow('⚠️  No changes detected. Make some code changes and try again.'));
-      process.exit(0);
+      console.error(chalk.red('❌ Error: No changes detected.'));
+      console.error(chalk.red('   Threadline check requires code changes to analyze.'));
+      console.error(chalk.red('   This may indicate a problem with git diff detection.'));
+      process.exit(1);
     }
     
     // Check for zero diff (files changed but no actual code changes)
