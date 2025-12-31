@@ -233,12 +233,80 @@ async function main() {
     console.log(diff4 || '(no diff or error)');
   }
 
-  // 7. Recent Commit History
+  // 7. Fetch-then-Diff Test (Option 2 validation)
+  logSection('Fetch-then-Diff Test (Option 2)');
+  
+  console.log('\nThis test validates whether fetching the default branch at runtime');
+  console.log('enables proper branch-based diffs without requiring yaml configuration.\n');
+  
+  const fetchTarget = ciDefaultBranch;
+  console.log(`Target to fetch: origin/${fetchTarget}`);
+  
+  // Check before fetch
+  console.log('\n--- Before Fetch ---');
+  const beforeFetchCheck = runCommand(`git rev-parse --verify origin/${fetchTarget} 2>&1`);
+  const existsBeforeFetch = !beforeFetchCheck.includes('fatal:') && !beforeFetchCheck.includes('ERROR');
+  console.log(`origin/${fetchTarget} exists: ${existsBeforeFetch ? 'YES ✅' : 'NO ❌'}`);
+  
+  if (!existsBeforeFetch) {
+    console.log('\n--- Fetching Default Branch ---');
+    
+    // Time the fetch operation
+    const fetchStartTime = Date.now();
+    const fetchResult = runCommand(`git fetch origin ${fetchTarget}:refs/remotes/origin/${fetchTarget} --depth=1 2>&1`);
+    const fetchEndTime = Date.now();
+    const fetchDuration = fetchEndTime - fetchStartTime;
+    
+    console.log(`Command: git fetch origin ${fetchTarget}:refs/remotes/origin/${fetchTarget} --depth=1`);
+    console.log(`Result: ${fetchResult || '(success - no output)'}`);
+    console.log(`⏱️  Duration: ${fetchDuration}ms (${(fetchDuration / 1000).toFixed(2)}s)`);
+    
+    // Check after fetch
+    console.log('\n--- After Fetch ---');
+    const afterFetchCheck = runCommand(`git rev-parse --verify origin/${fetchTarget} 2>&1`);
+    const existsAfterFetch = !afterFetchCheck.includes('fatal:') && !afterFetchCheck.includes('ERROR');
+    console.log(`origin/${fetchTarget} exists: ${existsAfterFetch ? 'YES ✅' : 'NO ❌'}`);
+    
+    if (existsAfterFetch) {
+      console.log(`origin/${fetchTarget} SHA: ${afterFetchCheck.substring(0, 12)}`);
+      
+      // Now try the diff again
+      console.log(`\n--- Diff Test After Fetch (origin/${fetchTarget} vs origin/${currentRefName}) ---`);
+      
+      const diffStartTime = Date.now();
+      const diffResult = runCommand(`git diff origin/${fetchTarget}...origin/${currentRefName} --stat 2>&1 | head -20`);
+      const diffEndTime = Date.now();
+      const diffDuration = diffEndTime - diffStartTime;
+      
+      if (diffResult.includes('fatal:') || diffResult.includes('ERROR')) {
+        console.log(`❌ Diff FAILED: ${diffResult}`);
+      } else {
+        console.log(`✅ Diff SUCCESS!`);
+        console.log(`⏱️  Diff Duration: ${diffDuration}ms`);
+        console.log(`\nDiff output:`);
+        console.log(diffResult || '(no changes)');
+      }
+      
+      // Total time summary
+      console.log(`\n--- Timing Summary ---`);
+      console.log(`Fetch time: ${fetchDuration}ms`);
+      console.log(`Diff time: ${diffDuration}ms`);
+      console.log(`Total overhead: ${fetchDuration + diffDuration}ms (${((fetchDuration + diffDuration) / 1000).toFixed(2)}s)`);
+    } else {
+      console.log(`❌ Fetch did not make origin/${fetchTarget} available`);
+      console.log(`   This approach may not work for GitLab CI`);
+    }
+  } else {
+    console.log(`\norigin/${fetchTarget} already exists - no fetch needed.`);
+    console.log(`This test is designed for environments where the default branch is NOT fetched by default.`);
+  }
+
+  // 8. Recent Commit History (moved from 7)
   logSection('Recent Commit History');
   const history = runCommand('git log --oneline --graph -10');
   console.log(history || '(no history)');
 
-  // 8. Analysis
+  // 9. Analysis
   logSection('Analysis & Recommendations');
   
   const pipelineSource = process.env.CI_PIPELINE_SOURCE;
