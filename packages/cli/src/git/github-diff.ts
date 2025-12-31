@@ -1,40 +1,29 @@
 import simpleGit, { SimpleGit } from 'simple-git';
 import { GitDiffResult } from '../utils/git-diff-executor';
+import { getDefaultBranchName } from './repo';
 
 /**
  * Get diff for GitHub Actions CI environment
  * 
- * GitHub Actions provides different environment variables depending on the event type.
- * We handle three scenarios:
+ * Handles four scenarios:
  * 
  * 1. PR Context (pull_request event):
- *    - GITHUB_EVENT_NAME = 'pull_request'
- *    - GitHub provides GITHUB_BASE_REF (target branch) and GITHUB_HEAD_REF (source branch)
- *    - These are ONLY available for pull_request events, NOT for push events
- *    - Compare: origin/base vs origin/head
- *    - Shows: All changes in the PR
+ *    Uses GITHUB_BASE_REF vs GITHUB_HEAD_REF
+ *    Shows: All changes in the PR
  * 
- * 2. Merge Commit to Main (push event, main branch, merge commit):
- *    - GITHUB_EVENT_NAME = 'push', GITHUB_REF_NAME = 'main'
- *    - GITHUB_BASE_REF and GITHUB_HEAD_REF are NOT set for push events
- *    - When a PR is merged, GitHub creates a merge commit with 2+ parents
- *    - We detect merge commits by checking parent count (> 1)
- *    - Compare: origin/main~1 vs origin/main
- *    - Shows: All changes that were merged in (same as feature branch vs main)
- *    - Why this works: main~1 is main before merge, main is main after merge
- *    - This gives us the cumulative diff of what was merged, not just the merge commit itself
+ * 2. Merge Commit to Default Branch (push event, default branch):
+ *    Compare: origin/default~1 vs origin/default
+ *    Shows: All changes that were merged in
  * 
  * 3. Feature Branch Push (push event, feature branch):
- *    - GITHUB_EVENT_NAME = 'push', GITHUB_REF_NAME = 'feature-branch-name'
- *    - GITHUB_BASE_REF and GITHUB_HEAD_REF are NOT set for push events
- *    - GitHub provides GITHUB_REF_NAME (current branch name)
- *    - Compare: origin/main vs origin/feature-branch
- *    - Shows: All changes in feature branch vs main (cumulative)
- *    - Why not HEAD~1 vs HEAD: That only shows the last commit, not cumulative changes
+ *    Compare: origin/default vs origin/feature-branch
+ *    Shows: Cumulative changes in feature branch vs default
  * 
- * This is the ONLY implementation for GitHub - no fallbacks, no alternatives.
- * If this doesn't work, we fail with a clear error.
- */
+ * 4. Direct Commit to Default Branch (push event, default branch, non-merge):
+ *    Compare: origin/default~1 vs origin/default
+ *    Shows: Changes in the direct commit
+ * 
+  */
 export async function getGitHubDiff(repoRoot: string): Promise<GitDiffResult> {
   const git: SimpleGit = simpleGit(repoRoot);
 
@@ -43,6 +32,10 @@ export async function getGitHubDiff(repoRoot: string): Promise<GitDiffResult> {
   if (!isRepo) {
     throw new Error('Not a git repository. Threadline requires a git repository.');
   }
+
+  // Detect the default branch name (e.g., "main", "master")
+  // This is used for scenarios 2, 3, and 4
+  const defaultBranch = await getDefaultBranchName(repoRoot);
 
   // Determine context from GitHub environment variables
   const eventName = process.env.GITHUB_EVENT_NAME;
@@ -74,51 +67,43 @@ export async function getGitHubDiff(repoRoot: string): Promise<GitDiffResult> {
     };
   }
 
-  // Scenario 2: Merge Commit to Main
-  // When a PR is merged to main, GitHub creates a merge commit with 2+ parents
-  // Problem: origin/main vs origin/main = empty diff (comparing branch to itself)
-  // Solution: Compare main before merge (main~1) vs main after merge (main)
-  // This shows all changes that were merged in, which is what we want to check
-  if (refName === 'main' && commitSha) {
-    // Check if this is a merge commit by counting parents
-    // Merge commits have 2+ parents (first parent = main before merge, second = feature branch tip)
+  // Scenario 2 & 4: Default Branch Push (merge commit or direct commit)
+  // When code is pushed to the default branch, we compare default~1 vs default
+  // This works for both merge commits and direct commits:
+  // - Merge commits: Shows all changes that were merged in
+  // - Direct commits: Shows the changes in the direct commit
+  if (refName === defaultBranch && commitSha) {
+    // Compare default branch before the push (default~1) vs default branch after the push (default)
+    // This shows all changes introduced by the push, whether merged or direct
     try {
-      const parentShas = await git.raw(['log', '-1', '--format=%P', commitSha]);
-      const parentCount = parentShas.trim() ? parentShas.trim().split(/\s+/).length : 0;
-      
-      if (parentCount > 1) {
-        // This is a merge commit
-        // Compare main before merge vs main after merge
-        // origin/main~1 = main branch before the merge commit
-        // origin/main = main branch after the merge commit (includes merge commit)
-        // This diff shows all changes that were merged in (same as feature branch vs main)
-        const diff = await git.diff(['origin/main~1...origin/main', '-U200']);
-        const diffSummary = await git.diffSummary(['origin/main~1...origin/main']);
-        const changedFiles = diffSummary.files.map(f => f.file);
+      const diff = await git.diff([`origin/${defaultBranch}~1...origin/${defaultBranch}`, '-U200']);
+      const diffSummary = await git.diffSummary([`origin/${defaultBranch}~1...origin/${defaultBranch}`]);
+      const changedFiles = diffSummary.files.map(f => f.file);
 
-        return {
-          diff: diff || '',
-          changedFiles
-        };
-      }
+      return {
+        diff: diff || '',
+        changedFiles
+      };
     } catch (error: any) {
-      // If we can't detect merge commit, fall through to regular branch logic
-      // This handles edge cases where detection fails
-      console.log(`[DEBUG] Could not detect merge commit, using regular branch logic: ${error.message}`);
+      // If we can't get the diff (e.g., first commit on branch), throw a clear error
+      throw new Error(
+        `Could not get diff for default branch '${defaultBranch}'. ` +
+        `This might be the first commit on the branch. Error: ${error.message}`
+      );
     }
   }
 
   // Scenario 3: Feature Branch Push
-  // When code is pushed to a feature branch, we want to see all changes vs main
-  // Compare: origin/main vs origin/feature-branch
-  // This shows cumulative changes in the feature branch (all commits vs main)
+  // When code is pushed to a feature branch, we want to see all changes vs the default branch
+  // Compare: origin/default vs origin/feature-branch
+  // This shows cumulative changes in the feature branch (all commits vs default branch)
   // Note: We don't use HEAD~1 vs HEAD because that only shows the last commit,
   //       not the cumulative changes in the branch
   if (refName) {
-    // For branch pushes, compare against origin/main (standard base branch)
-    // GitHub Actions with fetch-depth: 0 should have origin/main available
-    const diff = await git.diff([`origin/main...origin/${refName}`, '-U200']);
-    const diffSummary = await git.diffSummary([`origin/main...origin/${refName}`]);
+    // For branch pushes, compare against origin/default (detected default branch)
+    // GitHub Actions with fetch-depth: 0 should have origin/default available
+    const diff = await git.diff([`origin/${defaultBranch}...origin/${refName}`, '-U200']);
+    const diffSummary = await git.diffSummary([`origin/${defaultBranch}...origin/${refName}`]);
     const changedFiles = diffSummary.files.map(f => f.file);
 
     return {

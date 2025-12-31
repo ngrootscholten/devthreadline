@@ -53,6 +53,7 @@ async function main() {
   logEnvVar('GITHUB_WORKFLOW');
   logEnvVar('GITHUB_ACTIONS');
   logEnvVar('GITHUB_REPOSITORY');
+  logEnvVar('GITHUB_SERVER_URL');
   logEnvVar('GITHUB_RUN_ID');
 
   // 2. Git State
@@ -193,6 +194,78 @@ async function main() {
   }
 
   // 4. Diff Tests
+  // 4. Repository Name Detection
+  logSection('Repository Name Detection');
+  
+  console.log('\n--- Method 1: GITHUB_REPOSITORY Environment Variable ---');
+  const githubRepo = process.env.GITHUB_REPOSITORY;
+  const githubServerUrl = process.env.GITHUB_SERVER_URL || 'https://github.com';
+  if (githubRepo) {
+    const repoUrl = `${githubServerUrl}/${githubRepo}.git`;
+    console.log(`  Result: ${repoUrl}`);
+    console.log(`  Status: ✅ AVAILABLE`);
+  } else {
+    console.log(`  Result: NOT SET`);
+    console.log(`  Status: ❌ NOT AVAILABLE`);
+  }
+  
+  console.log('\n--- Method 2: Git Remote Origin URL ---');
+  const gitRemoteUrl = runCommand('git remote get-url origin 2>&1');
+  if (gitRemoteUrl.includes('ERROR') || gitRemoteUrl.includes('fatal:')) {
+    console.log(`  Result: ERROR - ${gitRemoteUrl}`);
+    console.log(`  Status: ❌ NOT AVAILABLE`);
+  } else {
+    console.log(`  Result: ${gitRemoteUrl}`);
+    console.log(`  Status: ✅ AVAILABLE`);
+  }
+  
+  console.log('\n--- Method 3: Git Remote Show Origin ---');
+  const remoteShowOrigin = runCommand('git remote show origin 2>&1 | head -5');
+  if (remoteShowOrigin.includes('ERROR') || remoteShowOrigin.includes('fatal:')) {
+    console.log(`  Result: ERROR - ${remoteShowOrigin.split('\n')[0]}`);
+    console.log(`  Status: ❌ NOT AVAILABLE`);
+  } else {
+    console.log(`  Result: ${remoteShowOrigin}`);
+    console.log(`  Status: ✅ AVAILABLE`);
+  }
+  
+  // 5. Branch Name Detection
+  logSection('Branch Name Detection');
+  
+  console.log('\n--- Method 1: GITHUB_REF_NAME Environment Variable ---');
+  const githubRefName = process.env.GITHUB_REF_NAME;
+  if (githubRefName) {
+    console.log(`  Result: ${githubRefName}`);
+    console.log(`  Status: ✅ AVAILABLE`);
+  } else {
+    console.log(`  Result: NOT SET`);
+    console.log(`  Status: ❌ NOT AVAILABLE`);
+  }
+  
+  console.log('\n--- Method 2: Git Revparse Abbrev-Ref HEAD ---');
+  const gitBranchName = runCommand('git rev-parse --abbrev-ref HEAD 2>&1');
+  if (gitBranchName.includes('ERROR') || gitBranchName.includes('fatal:')) {
+    console.log(`  Result: ERROR - ${gitBranchName}`);
+    console.log(`  Status: ❌ NOT AVAILABLE`);
+  } else if (gitBranchName === 'HEAD') {
+    console.log(`  Result: ${gitBranchName}`);
+    console.log(`  Status: ⚠️  DETACHED HEAD (not a branch)`);
+  } else {
+    console.log(`  Result: ${gitBranchName}`);
+    console.log(`  Status: ✅ AVAILABLE`);
+  }
+  
+  console.log('\n--- Method 3: Git Symbolic-Ref HEAD ---');
+  const gitSymbolicRef = runCommand('git symbolic-ref --short HEAD 2>&1');
+  if (gitSymbolicRef.includes('ERROR') || gitSymbolicRef.includes('fatal:')) {
+    console.log(`  Result: ERROR - ${gitSymbolicRef}`);
+    console.log(`  Status: ❌ NOT AVAILABLE (likely detached HEAD)`);
+  } else {
+    console.log(`  Result: ${gitSymbolicRef}`);
+    console.log(`  Status: ✅ AVAILABLE`);
+  }
+
+  // 6. Diff Tests
   logSection('Diff Tests');
   
   const refName = process.env.GITHUB_REF_NAME || runCommand('git rev-parse --abbrev-ref HEAD');
