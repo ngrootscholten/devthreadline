@@ -33,10 +33,16 @@ export async function checkCommand(options: {
   // Pre-flight check: Validate ALL required environment variables at once
   const apiKey = getThreadlineApiKey();
   const account = getThreadlineAccount();
+  
+  // Debug: Show what we got (masked for security)
+  console.log(chalk.gray(`  [Debug] THREADLINE_API_KEY: ${apiKey ? `"${apiKey.substring(0, 4)}..."` : 'undefined'}`));
+  console.log(chalk.gray(`  [Debug] THREADLINE_ACCOUNT: ${account ? `"${account.substring(0, 4)}..."` : 'undefined'}`));
+  
   const missingVars: string[] = [];
   
-  if (!apiKey) missingVars.push('THREADLINE_API_KEY');
-  if (!account) missingVars.push('THREADLINE_ACCOUNT');
+  // Check for undefined, empty string, or literal unexpanded variable
+  if (!apiKey || apiKey.startsWith('$')) missingVars.push('THREADLINE_API_KEY');
+  if (!account || account.startsWith('$')) missingVars.push('THREADLINE_ACCOUNT');
   
   if (missingVars.length > 0) {
     console.error(chalk.red('❌ Error: Missing required environment variables:'));

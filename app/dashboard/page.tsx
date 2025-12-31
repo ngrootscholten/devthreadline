@@ -77,17 +77,44 @@ export default function DashboardPage() {
     return null;
   }
 
-  const formatDate = (dateString: string) => {
+  const formatRelativeTime = (dateString: string): { display: string; tooltip: string } => {
     // dateString is now ISO 8601 with 'Z' (UTC indicator) from API
-    // JavaScript Date will correctly parse it as UTC and convert to local time
     const date = new Date(dateString);
-    return date.toLocaleString(undefined, {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    
+    // Precise tooltip with seconds
+    const tooltip = date.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    
+    // Relative time for recent items (< 2 hours)
+    if (diffSeconds < 60) {
+      return { display: `${diffSeconds} seconds ago`, tooltip };
+    } else if (diffMinutes < 60) {
+      return { display: `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`, tooltip };
+    } else if (diffHours < 2) {
+      return { display: `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`, tooltip };
+    }
+    
+    // Absolute time for older items
+    const display = date.toLocaleString(undefined, {
       month: "short",
       day: "numeric",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
+    
+    return { display, tooltip };
   };
 
   const formatDiffStats = (stats: Check["diffStats"]) => {
@@ -192,9 +219,18 @@ export default function DashboardPage() {
                       onClick={() => router.push(`/check/${check.id}`)}
                     >
                       <td className="py-3 px-4 text-sm text-slate-300">
-                        <Link href={`/check/${check.id}`} className="hover:text-white transition-colors">
-                          {formatDate(check.createdAt)}
-                        </Link>
+                        {(() => {
+                          const { display, tooltip } = formatRelativeTime(check.createdAt);
+                          return (
+                            <Link 
+                              href={`/check/${check.id}`} 
+                              className="hover:text-white transition-colors"
+                              title={tooltip}
+                            >
+                              {display}
+                            </Link>
+                          );
+                        })()}
                       </td>
                       <td className="py-3 px-4 text-sm text-white font-mono">
                         {check.repoName ? (
