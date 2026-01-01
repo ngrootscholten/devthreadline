@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npx tsx scripts/test-vercel-context.ts && npm run build"
+}
+

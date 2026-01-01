@@ -9,10 +9,12 @@
     "dev": "next dev",
     "build": "next build && npx -y threadlines check",
     "build:local": "next build && (npx -y threadlines check || true)",
+    "build:vercel": "npx tsx scripts/test-vercel-context.ts && next build",
     "start": "next start",
     "lint": "next lint",
     "build:cli": "cd packages/cli && npm run build",
-    "test:local-context": "npx tsx scripts/test-local-context.ts"
+    "test:local-context": "npx tsx scripts/test-local-context.ts",
+    "test:vercel-context": "npx tsx scripts/test-vercel-context.ts"
   },
   "dependencies": {
     "@auth/pg-adapter": "^1.11.1",
