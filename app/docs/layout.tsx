@@ -9,6 +9,7 @@ const docsNav = [
   { href: "/docs/examples", label: "Examples & Patterns" },
   { href: "/docs/configuration", label: "Configuration" },
   { href: "/docs/troubleshooting", label: "Troubleshooting" },
+  { href: "/docs/upcoming-features", label: "Upcoming Features" },
 ];
 
 export default function DocsLayout({
