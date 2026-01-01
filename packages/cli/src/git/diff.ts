@@ -197,7 +197,7 @@ export async function getCommitMessage(repoRoot: string, sha: string): Promise<s
     // Get full commit message (subject + body)
     const message = await git.show([sha, '--format=%B', '--no-patch']);
     return message.trim() || null;
-  } catch (error: any) {
+  } catch {
     // Commit not found or invalid
     return null;
   }

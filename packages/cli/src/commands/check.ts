@@ -1,13 +1,11 @@
 import { findThreadlines } from '../validators/experts';
-import { getCommitMessage } from '../git/diff';
 import { getFileContent, getFolderContent, getMultipleFilesContent } from '../git/file';
 import { ReviewAPIClient, ExpertResult } from '../api/client';
 import { getThreadlineApiKey, getThreadlineAccount } from '../utils/config';
 import { detectEnvironment } from '../utils/environment';
 import { detectContext, ReviewContext } from '../utils/context';
 import { collectMetadata } from '../utils/metadata';
-import { getDiffForContext, getDiffForEnvironment, getContextDescription } from '../utils/git-diff-executor';
-import { getGitContextForEnvironment, GitContext } from '../git/context';
+import { getGitContextForEnvironment } from '../git/context';
 import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';

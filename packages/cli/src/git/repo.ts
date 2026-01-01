@@ -8,7 +8,7 @@ import * as path from 'path';
  * Uses GITHUB_REPOSITORY environment variable (format: "owner/repo").
  * This is the ONLY method for GitHub - no fallbacks, no alternatives.
  */
-export async function getGitHubRepoName(repoRoot: string): Promise<string> {
+export async function getGitHubRepoName(_repoRoot: string): Promise<string> {
   const githubRepo = process.env.GITHUB_REPOSITORY;
   if (!githubRepo) {
     throw new Error(
@@ -27,7 +27,7 @@ export async function getGitHubRepoName(repoRoot: string): Promise<string> {
  * Uses VERCEL_GIT_REPO_OWNER and VERCEL_GIT_REPO_SLUG environment variables.
  * This is the ONLY method for Vercel - no fallbacks, no alternatives.
  */
-export async function getVercelRepoName(repoRoot: string): Promise<string> {
+export async function getVercelRepoName(_repoRoot: string): Promise<string> {
   const owner = process.env.VERCEL_GIT_REPO_OWNER;
   const slug = process.env.VERCEL_GIT_REPO_SLUG;
 
@@ -89,7 +89,7 @@ export async function getLocalRepoName(repoRoot: string): Promise<string> {
  * Uses GITHUB_REF_NAME environment variable.
  * This is the ONLY method for GitHub - no fallbacks, no alternatives.
  */
-export async function getGitHubBranchName(repoRoot: string): Promise<string> {
+export async function getGitHubBranchName(_repoRoot: string): Promise<string> {
   const refName = process.env.GITHUB_REF_NAME;
   if (!refName) {
     throw new Error(
@@ -107,7 +107,7 @@ export async function getGitHubBranchName(repoRoot: string): Promise<string> {
  * Uses VERCEL_GIT_COMMIT_REF environment variable.
  * This is the ONLY method for Vercel - no fallbacks, no alternatives.
  */
-export async function getVercelBranchName(repoRoot: string): Promise<string> {
+export async function getVercelBranchName(_repoRoot: string): Promise<string> {
   const branchName = process.env.VERCEL_GIT_COMMIT_REF;
   if (!branchName) {
     throw new Error(
@@ -175,7 +175,7 @@ export async function getLocalBranchName(repoRoot: string): Promise<string> {
  * Uses CI_PROJECT_URL environment variable.
  * This is the ONLY method for GitLab - no fallbacks, no alternatives.
  */
-export async function getGitLabRepoName(repoRoot: string): Promise<string> {
+export async function getGitLabRepoName(_repoRoot: string): Promise<string> {
   const projectUrl = process.env.CI_PROJECT_URL;
   if (!projectUrl) {
     throw new Error(
@@ -195,7 +195,7 @@ export async function getGitLabRepoName(repoRoot: string): Promise<string> {
  * Uses CI_COMMIT_REF_NAME environment variable.
  * This is the ONLY method for GitLab - no fallbacks, no alternatives.
  */
-export async function getGitLabBranchName(repoRoot: string): Promise<string> {
+export async function getGitLabBranchName(_repoRoot: string): Promise<string> {
   const refName = process.env.CI_COMMIT_REF_NAME;
   if (!refName) {
     throw new Error(
@@ -219,7 +219,7 @@ export async function getGitLabBranchName(repoRoot: string): Promise<string> {
  * Returns the branch name (e.g., "main", "master") without the "origin/" prefix.
  * Throws an error if the default branch cannot be detected.
  */
-export async function getDefaultBranchName(repoRoot: string): Promise<string> {
+export async function getDefaultBranchName(_repoRoot: string): Promise<string> {
   // GitHub Actions provides GITHUB_EVENT_PATH which contains repository.default_branch
   const githubEventPath = process.env.GITHUB_EVENT_PATH;
   

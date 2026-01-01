@@ -29,7 +29,7 @@ export async function getFileContent(repoRoot: string, filePath: string): Promis
   
   // Create artificial diff (all lines as additions)
   const lines = content.split('\n');
-  const diff = lines.map((line, index) => `+${line}`).join('\n');
+  const diff = lines.map((line) => `+${line}`).join('\n');
   
   // Add diff header
   const diffHeader = `--- /dev/null\n+++ ${filePath}\n@@ -0,0 +1,${lines.length} @@\n`;
@@ -90,7 +90,7 @@ export async function getFolderContent(repoRoot: string, folderPath: string): Pr
       const lines = content.split('\n');
       
       // Create artificial diff for this file
-      const fileDiff = lines.map((line, index) => `+${line}`).join('\n');
+      const fileDiff = lines.map((line) => `+${line}`).join('\n');
       const diffHeader = `--- /dev/null\n+++ ${filePath}\n@@ -0,0 +1,${lines.length} @@\n`;
       diffs.push(diffHeader + fileDiff);
       
@@ -137,7 +137,7 @@ export async function getMultipleFilesContent(repoRoot: string, filePaths: strin
     const lines = content.split('\n');
     
     // Create artificial diff for this file
-    const fileDiff = lines.map((line, index) => `+${line}`).join('\n');
+    const fileDiff = lines.map((line) => `+${line}`).join('\n');
     const diffHeader = `--- /dev/null\n+++ ${filePath}\n@@ -0,0 +1,${lines.length} @@\n`;
     diffs.push(diffHeader + fileDiff);
     

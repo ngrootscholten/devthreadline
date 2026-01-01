@@ -33,7 +33,7 @@ export interface GitDiffResult {
 export async function getDiffForEnvironment(
   environment: Environment,
   repoRoot: string,
-  context?: ReviewContext
+  _context?: ReviewContext
 ): Promise<GitDiffResult> {
   switch (environment) {
     case 'vercel':
