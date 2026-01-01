@@ -363,7 +363,6 @@ async function main() {
   }
   
   console.log(`\nCommit Author Detection:`);
-  const ciCommitAuthor = process.env.CI_COMMIT_AUTHOR;
   if (ciCommitAuthor) {
     console.log(`  ✅ Use CI_COMMIT_AUTHOR environment variable (most reliable)`);
     console.log(`     Format: "name <email>"`);
