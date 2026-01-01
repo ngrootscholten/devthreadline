@@ -415,18 +415,23 @@ function displayResults(response: ReviewResponse, showFull: boolean) {
   // Show attention items
   if (attentionItems.length > 0) {
     for (const item of attentionItems) {
-      console.log(chalk.yellow(`⚠️  ${item.expertId}`));
+      console.log(chalk.yellow(`[attention] ${item.expertId}`));
       if (item.fileReferences && item.fileReferences.length > 0) {
+        // List all files as bullet points
         for (const fileRef of item.fileReferences) {
           const lineRef = item.lineReferences?.[item.fileReferences.indexOf(fileRef)];
           const lineStr = lineRef ? `:${lineRef}` : '';
-          console.log(chalk.gray(`   ${fileRef}${lineStr} - ${item.reasoning || 'Needs attention'}`));
+          console.log(chalk.gray(`* ${fileRef}${lineStr}`));
         }
-      } else if (item.reasoning) {
-        console.log(chalk.gray(`   ${item.reasoning}`));
       }
+      // Show reasoning once at the end (if available)
+      if (item.reasoning) {
+        console.log(chalk.gray(item.reasoning));
+      } else if (!item.fileReferences || item.fileReferences.length === 0) {
+        console.log(chalk.gray('Needs attention'));
+      }
+      console.log(''); // Empty line between threadlines
     }
-    console.log('');
   }
 }
 
