@@ -19,12 +19,13 @@ export async function GET(req: NextRequest) {
 
     const pool = getPool();
     
-    // Get the 10 most recent checks for this user
+    // Get the 40 most recent checks for this user
     // Use AT TIME ZONE 'UTC' to explicitly mark timestamp as UTC before formatting
     const result = await pool.query(
       `SELECT 
         c.id,
         c.repo_name,
+        c.branch_name,
         c.environment,
         c.commit_sha,
         c.review_context,
@@ -51,6 +52,7 @@ export async function GET(req: NextRequest) {
       checks: result.rows.map(row => ({
         id: row.id,
         repoName: row.repo_name,
+        branchName: row.branch_name,
         environment: row.environment,
         commitSha: row.commit_sha,
         reviewContext: row.review_context,

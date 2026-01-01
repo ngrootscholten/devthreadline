@@ -8,6 +8,7 @@ import Link from "next/link";
 interface Check {
   id: string;
   repoName: string | null;
+  branchName: string | null;
   environment: string | null;
   commitSha: string | null;
   reviewContext: string | null;
@@ -122,12 +123,13 @@ export default function DashboardPage() {
     return `${stats.added > 0 ? `+${stats.added}` : ""}${stats.removed > 0 ? `-${stats.removed}` : ""} lines`;
   };
 
-  const formatResults = (results: Check["results"]) => {
+  const formatResults = (results: Check["results"], threadlinesCount: number) => {
     const parts = [];
     if (results.compliant > 0) parts.push(`${results.compliant} compliant`);
     if (results.attention > 0) parts.push(`${results.attention} attention`);
     if (results.notRelevant > 0) parts.push(`${results.notRelevant} not relevant`);
-    return parts.join(", ") || "No results";
+    const resultsText = parts.join(", ") || "No results";
+    return `${resultsText} (${threadlinesCount} threadline${threadlinesCount !== 1 ? 's' : ''})`;
   };
 
   const formatRepoName = (repoName: string | null): string => {
@@ -204,10 +206,9 @@ export default function DashboardPage() {
                   <tr className="border-b border-slate-800">
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Date</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Repository</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Branch</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Environment</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Files</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Changes</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Threadlines</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Results</th>
                   </tr>
                 </thead>
@@ -244,34 +245,36 @@ export default function DashboardPage() {
                           <span className="text-slate-500">—</span>
                         )}
                       </td>
+                      <td className="py-3 px-4 text-sm text-slate-300 font-mono">
+                        {check.branchName || <span className="text-slate-500">—</span>}
+                      </td>
                       <td className="py-3 px-4 text-sm">
                         {getEnvironmentBadge(check.environment) || <span className="text-slate-500">—</span>}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-slate-300">
-                        {check.filesChangedCount}
                       </td>
                       <td className="py-3 px-4 text-sm text-slate-300">
                         {formatDiffStats(check.diffStats)}
                       </td>
                       <td className="py-3 px-4 text-sm text-slate-300">
-                        {check.threadlinesCount}
-                      </td>
-                      <td className="py-3 px-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          {check.results.compliant > 0 && (
-                            <span className="text-green-400">{check.results.compliant} ✓</span>
-                          )}
-                          {check.results.attention > 0 && (
-                            <span className="text-yellow-400">{check.results.attention} ⚠</span>
-                          )}
-                          {check.results.notRelevant > 0 && (
-                            <span className="text-slate-500">{check.results.notRelevant} —</span>
-                          )}
-                          {check.results.compliant === 0 && 
-                           check.results.attention === 0 && 
-                           check.results.notRelevant === 0 && (
-                            <span className="text-slate-500">—</span>
-                          )}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {check.results.compliant > 0 && (
+                              <span className="text-green-400">{check.results.compliant} ✓</span>
+                            )}
+                            {check.results.attention > 0 && (
+                              <span className="text-yellow-400">{check.results.attention} ⚠</span>
+                            )}
+                            {check.results.notRelevant > 0 && (
+                              <span className="text-slate-500">{check.results.notRelevant} —</span>
+                            )}
+                            {check.results.compliant === 0 && 
+                             check.results.attention === 0 && 
+                             check.results.notRelevant === 0 && (
+                              <span className="text-slate-500">—</span>
+                            )}
+                          </div>
+                          <span className="text-slate-500 text-xs">
+                            {check.threadlinesCount} threadline{check.threadlinesCount !== 1 ? 's' : ''}
+                          </span>
                         </div>
                       </td>
                     </tr>
