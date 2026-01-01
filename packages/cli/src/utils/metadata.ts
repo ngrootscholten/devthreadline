@@ -12,11 +12,13 @@
 
 import { Environment } from './environment';
 import { ReviewContext } from './context';
-import { getCommitMessage } from '../git/diff';
+import { getCommitMessage, getCommitAuthor } from '../git/diff';
 
 export interface ReviewMetadata {
   commitSha?: string;
   commitMessage?: string;
+  commitAuthorName?: string;
+  commitAuthorEmail?: string;
   prTitle?: string;
 }
 
@@ -36,11 +38,27 @@ export async function collectMetadata(
   // Collect commit SHA (environment-specific)
   metadata.commitSha = getCommitSha(context, environment);
 
-  // Collect commit message (if we have a commit SHA)
+  // Collect commit message and author (if we have a commit SHA)
   if (metadata.commitSha) {
     const message = await getCommitMessage(repoRoot, metadata.commitSha);
     if (message) {
       metadata.commitMessage = message;
+    }
+    
+    // Get commit author using commit SHA
+    // No fallbacks - if this fails, the error propagates and fails the check
+    const author = await getCommitAuthor(repoRoot, metadata.commitSha);
+    if (author) {
+      metadata.commitAuthorName = author.name;
+      metadata.commitAuthorEmail = author.email;
+    }
+  } else {
+    // For local environment without explicit commit SHA, get HEAD commit author
+    // No fallbacks - if this fails, the error propagates and fails the check
+    const author = await getCommitAuthor(repoRoot);
+    if (author) {
+      metadata.commitAuthorName = author.name;
+      metadata.commitAuthorEmail = author.email;
     }
   }
 

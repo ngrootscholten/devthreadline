@@ -217,6 +217,8 @@ export async function checkCommand(options: {
       branchName: branchName,
       commitSha: metadata.commitSha,
       commitMessage: metadata.commitMessage,
+      commitAuthorName: metadata.commitAuthorName,
+      commitAuthorEmail: metadata.commitAuthorEmail,
       prTitle: metadata.prTitle,
       environment: environment
     });

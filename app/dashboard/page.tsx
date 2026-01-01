@@ -11,6 +11,8 @@ interface Check {
   branchName: string | null;
   environment: string | null;
   commitSha: string | null;
+  commitAuthorName: string | null;
+  commitAuthorEmail: string | null;
   reviewContext: string | null;
   diffStats: {
     added: number;
@@ -207,6 +209,7 @@ export default function DashboardPage() {
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Date</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Repository</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Branch</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Author</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Environment</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Changes</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Results</th>
@@ -247,6 +250,21 @@ export default function DashboardPage() {
                       </td>
                       <td className="py-3 px-4 text-sm text-slate-300 font-mono">
                         {check.branchName || <span className="text-slate-500">—</span>}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-slate-300">
+                        {check.commitAuthorName ? (
+                          <span 
+                            title={check.commitAuthorEmail || undefined}
+                            className="cursor-help"
+                          >
+                            {check.commitAuthorName}
+                            {check.commitAuthorEmail && (
+                              <span className="text-slate-500 text-xs ml-1">({check.commitAuthorEmail})</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">—</span>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-sm">
                         {getEnvironmentBadge(check.environment) || <span className="text-slate-500">—</span>}

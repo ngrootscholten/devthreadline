@@ -17,6 +17,8 @@ export interface ReviewRequest {
   branchName?: string;   // Branch name (e.g., "feature/x")
   commitSha?: string;    // Commit SHA (when commit context available)
   commitMessage?: string; // Commit message (when commit context available)
+  commitAuthorName?: string; // Commit author name
+  commitAuthorEmail?: string; // Commit author email
   prTitle?: string;      // PR/MR title (when GitLab MR context available)
   environment?: string;  // Environment where check was run: 'vercel', 'github', 'gitlab', 'local'
 }

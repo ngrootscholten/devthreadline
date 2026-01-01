@@ -11,6 +11,8 @@ interface StoreCheckParams {
   contextStats: { fileCount: number; totalLines: number };
   reviewContext: string; // 'local', 'branch', 'commit', 'file', 'folder', 'files'
   commitSha?: string;
+  commitAuthorName?: string;
+  commitAuthorEmail?: string;
   userId?: string; // Optional - may not be available for legacy env var auth
 }
 
@@ -25,6 +27,8 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
     contextStats,
     reviewContext,
     commitSha,
+    commitAuthorName,
+    commitAuthorEmail,
     userId
   } = params;
 
@@ -43,6 +47,8 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
         branch_name,
         commit_sha,
         commit_message,
+        commit_author_name,
+        commit_author_email,
         pr_title,
         environment,
         review_context,
@@ -53,7 +59,7 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
         context_files_count,
         context_files_total_lines,
         threadlines_count
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING id`,
       [
         userId || null,
@@ -62,6 +68,8 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
         request.branchName || null,
         commitSha || null,
         request.commitMessage || null,
+        commitAuthorName || null,
+        commitAuthorEmail || null,
         request.prTitle || null,
         request.environment || null,
         reviewContext,

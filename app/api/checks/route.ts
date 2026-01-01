@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
         c.branch_name,
         c.environment,
         c.commit_sha,
+        c.commit_author_name,
+        c.commit_author_email,
         c.review_context,
         c.diff_lines_added,
         c.diff_lines_removed,
@@ -55,6 +57,8 @@ export async function GET(req: NextRequest) {
         branchName: row.branch_name,
         environment: row.environment,
         commitSha: row.commit_sha,
+        commitAuthorName: row.commit_author_name,
+        commitAuthorEmail: row.commit_author_email,
         reviewContext: row.review_context,
         diffStats: {
           added: row.diff_lines_added,

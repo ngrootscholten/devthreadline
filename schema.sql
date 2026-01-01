@@ -134,6 +134,8 @@ CREATE TABLE IF NOT EXISTS checks (
   branch_name TEXT,
   commit_sha TEXT,
   commit_message TEXT,
+  commit_author_name TEXT,
+  commit_author_email TEXT,
   pr_title TEXT,
   environment TEXT,
   review_context TEXT,

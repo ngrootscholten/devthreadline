@@ -209,6 +209,58 @@ export async function getCommitMessage(repoRoot: string, sha: string): Promise<s
 }
 
 /**
+ * Get commit author name and email for a specific commit SHA.
+ * 
+ * Strategy without fallbacks:
+ * - If commit SHA is provided, use `git show <sha> --format=%an` and `%ae`
+ * - If no SHA (local only), use `git log -1` to get HEAD commit author
+ * - If git command fails, throws error (no silent fallback)
+ * 
+ * This works in all environments:
+ * - CI environments always have commit SHA (GITHUB_SHA, CI_COMMIT_SHA, VERCEL_GIT_COMMIT_SHA)
+ * - git show works even in shallow clones (showing the commit itself)
+ * - Local can use HEAD if no explicit SHA
+ */
+export async function getCommitAuthor(
+  repoRoot: string,
+  sha?: string
+): Promise<{ name: string; email: string } | null> {
+  const git: SimpleGit = simpleGit(repoRoot);
+
+  try {
+    let name: string;
+    let email: string;
+
+    if (sha) {
+      // Use git show for specific commit SHA
+      name = await git.show([sha, '--format=%an', '--no-patch']);
+      email = await git.show([sha, '--format=%ae', '--no-patch']);
+    } else {
+      // Use git log for HEAD (local environment only)
+      const logResult = await git.log({ maxCount: 1 });
+      if (!logResult.latest) {
+        throw new Error('No commits found in repository');
+      }
+      name = logResult.latest.author_name;
+      email = logResult.latest.author_email;
+    }
+
+    // Trim whitespace
+    name = name.trim();
+    email = email.trim();
+
+    if (!name || !email) {
+      throw new Error('Commit author name or email is empty');
+    }
+
+    return { name, email };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to get commit author: ${errorMessage}`);
+  }
+}
+
+/**
  * Get diff for a specific commit
  */
 export async function getCommitDiff(repoRoot: string, sha: string): Promise<GitDiffResult> {
