@@ -315,7 +315,8 @@ export async function checkCommand(options: {
       commitAuthorName: metadata.commitAuthorName,
       commitAuthorEmail: metadata.commitAuthorEmail,
       prTitle: metadata.prTitle,
-      environment: environment
+      environment: environment,
+      cliVersion: CLI_VERSION
     });
 
     // 7. Display results (with filtering if --full not specified)

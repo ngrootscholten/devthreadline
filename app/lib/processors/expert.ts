@@ -22,6 +22,7 @@ export interface ProcessThreadlinesResponse {
     completed: number;
     timedOut: number;
     errors: number;
+    llmModel?: string; // Model used for processing (same for all threadlines)
   };
 }
 
@@ -29,6 +30,9 @@ const EXPERT_TIMEOUT = 40000; // 40 seconds
 
 export async function processThreadlines(request: ProcessThreadlinesRequest): Promise<ProcessThreadlinesResponse> {
   const { threadlines, diff, files, apiKey } = request;
+  
+  // Determine LLM model (same for all threadlines in this check)
+  const llmModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
   
   // Create promises with timeout
   const promises = threadlines.map(threadline => 
@@ -93,7 +97,8 @@ export async function processThreadlines(request: ProcessThreadlinesRequest): Pr
       totalThreadlines: threadlines.length,
       completed,
       timedOut,
-      errors
+      errors,
+      llmModel
     }
   };
 }

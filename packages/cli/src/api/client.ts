@@ -21,6 +21,7 @@ export interface ReviewRequest {
   commitAuthorEmail?: string; // Commit author email
   prTitle?: string;      // PR/MR title (when GitLab MR context available)
   environment?: string;  // Environment where check was run: 'vercel', 'github', 'gitlab', 'local'
+  cliVersion?: string;   // CLI version that ran this check
 }
 
 export interface ExpertResult {

@@ -15,6 +15,8 @@ interface CheckSummary {
   commitSha: string | null;
   reviewContext: string | null;
   environment: string | null;
+  llmModel: string | null;
+  cliVersion: string | null;
   diffStats: {
     added: number;
     removed: number;
@@ -302,6 +304,18 @@ export default function CheckDetailPage() {
                 <h2 className="text-sm font-semibold text-slate-400 mb-2">Environment</h2>
                 {getEnvironmentBadge(check.environment) || <span className="text-slate-500">—</span>}
               </div>
+              {check.llmModel && (
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-400 mb-2">LLM Model</h2>
+                  <p className="text-white font-mono text-sm">{check.llmModel}</p>
+                </div>
+              )}
+              {check.cliVersion && (
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-400 mb-2">CLI Version</h2>
+                  <p className="text-white font-mono text-sm">{check.cliVersion}</p>
+                </div>
+              )}
             </div>
           </div>
 

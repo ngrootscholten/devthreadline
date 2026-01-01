@@ -34,6 +34,8 @@ export async function GET(
         c.commit_sha,
         c.review_context,
         c.environment,
+        c.llm_model,
+        c.cli_version,
         c.diff_lines_added,
         c.diff_lines_removed,
         c.diff_total_lines,
@@ -96,6 +98,8 @@ export async function GET(
         commitSha: check.commit_sha,
         reviewContext: check.review_context,
         environment: check.environment,
+        llmModel: check.llm_model,
+        cliVersion: check.cli_version,
         diffStats: {
           added: check.diff_lines_added,
           removed: check.diff_lines_removed,

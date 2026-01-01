@@ -139,6 +139,8 @@ CREATE TABLE IF NOT EXISTS checks (
   pr_title TEXT,
   environment TEXT,
   review_context TEXT,
+  llm_model TEXT,
+  cli_version TEXT,
   diff_lines_added INTEGER DEFAULT 0,
   diff_lines_removed INTEGER DEFAULT 0,
   diff_total_lines INTEGER DEFAULT 0,

@@ -52,6 +52,8 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
         pr_title,
         environment,
         review_context,
+        llm_model,
+        cli_version,
         diff_lines_added,
         diff_lines_removed,
         diff_total_lines,
@@ -59,7 +61,7 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
         context_files_count,
         context_files_total_lines,
         threadlines_count
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING id`,
       [
         userId || null,
@@ -73,6 +75,8 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
         request.prTitle || null,
         request.environment || null,
         reviewContext,
+        result.metadata.llmModel || null,
+        request.cliVersion || null,
         diffStats.added,
         diffStats.removed,
         diffStats.total,

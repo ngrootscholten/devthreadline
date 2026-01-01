@@ -142,7 +142,7 @@ async function getCommitAuthorForEnvironment(
     try {
       const eventData = JSON.parse(fs.readFileSync(eventPath, 'utf-8'));
       
-      // For push events, use head_commit.author
+      // For push  events, use head_commit.author 
       if (eventData.head_commit?.author) {
         return {
           name: eventData.head_commit.author.name,
