@@ -11,8 +11,8 @@ export default function FixDetectionDesign() {
   return (
     <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
       <div className="mb-6">
-        <Link href="/docs/troubleshooting" className="text-green-400 hover:text-green-300 transition-colors">
-          ← Back to Troubleshooting
+        <Link href="/docs/upcoming-features" className="text-green-400 hover:text-green-300 transition-colors">
+          ← Back to Upcoming Features
         </Link>
       </div>
 

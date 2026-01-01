@@ -12,8 +12,9 @@
  */
 
 import simpleGit, { SimpleGit } from 'simple-git';
+import { execSync } from 'child_process';
 import { GitDiffResult } from '../utils/git-diff-executor';
-import { getCommitMessage, getCommitAuthor } from './diff';
+import { getCommitMessage } from './diff';
 import { ReviewContext } from '../utils/context';
 
 export interface VercelContext {
@@ -96,7 +97,7 @@ async function getDiff(repoRoot: string): Promise<GitDiffResult> {
     .map(line => line.trim());
 
   return {
-    diff: diff || '',
+    diff: diff || '',  // Empty diff is legitimate (e.g., metadata-only commits, merge commits)
     changedFiles
   };
 }
@@ -149,7 +150,10 @@ function getCommitSha(): string {
 
 /**
  * Gets commit author for Vercel
- * Uses VERCEL_GIT_COMMIT_AUTHOR_NAME for name, git log for email
+ * Uses VERCEL_GIT_COMMIT_AUTHOR_NAME for name, raw git log command for email
+ * 
+ * Uses raw `git log` command (same as test script) instead of simple-git library
+ * because simple-git's log method may not work correctly in Vercel's shallow clone.
  */
 async function getCommitAuthorForVercel(
   repoRoot: string,
@@ -163,18 +167,27 @@ async function getCommitAuthorForVercel(
     );
   }
   
-  // Get email from git log - fail loudly if this doesn't work
-  const gitAuthor = await getCommitAuthor(repoRoot, commitSha);
-  if (!gitAuthor || !gitAuthor.email) {
+  // Use raw git log command (same approach as test script) - more reliable than simple-git
+  try {
+    const email = execSync(
+      `git log ${commitSha} -1 --format=%ae`,
+      { encoding: 'utf-8', cwd: repoRoot }
+    ).trim();
+    
+    if (!email) {
+      throw new Error('Email is empty');
+    }
+    
+    return {
+      name: authorName.trim(),
+      email: email.trim()
+    };
+  } catch (error) {
     throw new Error(
       `Vercel: Failed to get commit author email from git log for commit ${commitSha}. ` +
-      `This should be available in Vercel's build environment.`
+      `This should be available in Vercel's build environment. ` +
+      `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
-  
-  return {
-    name: authorName.trim(),
-    email: gitAuthor.email.trim()
-  };
 }
 
