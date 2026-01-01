@@ -20,6 +20,7 @@
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import simpleGit from 'simple-git';
 
 function runCommand(cmd: string): string {
   try {
@@ -53,19 +54,43 @@ async function main() {
   // 2. Git Config (who will commit changes)
   logSection('Git Config (Who Will Commit)');
   
-  console.log('\n--- User Configuration ---');
-  const gitUserName = runCommand('git config user.name');
-  const gitUserEmail = runCommand('git config user.email');
-  console.log(`user.name:  ${gitUserName || '(not set)'}`);
-  console.log(`user.email: ${gitUserEmail || '(not set)'}`);
+  console.log('\n--- User Configuration (Test Script Method) ---');
+  const gitUserNameShell = runCommand('git config user.name');
+  const gitUserEmailShell = runCommand('git config user.email');
+  console.log(`user.name (shell):  ${gitUserNameShell || '(not set)'}`);
+  console.log(`user.email (shell): ${gitUserEmailShell || '(not set)'}`);
   
-  if (gitUserName && gitUserEmail && !gitUserName.includes('ERROR') && !gitUserEmail.includes('ERROR')) {
-    console.log(`\n✅ Git config available: ${gitUserName} <${gitUserEmail}>`);
+  console.log('\n--- User Configuration (CLI Method - simple-git) ---');
+  const git = simpleGit(process.cwd());
+  let gitUserName: string | null = null;
+  let gitUserEmail: string | null = null;
+  try {
+    const nameResult = await git.getConfig('user.name');
+    const emailResult = await git.getConfig('user.email');
+    gitUserName = nameResult.value;
+    gitUserEmail = emailResult.value;
+    console.log(`user.name (simple-git):  ${gitUserName || '(not set)'}`);
+    console.log(`user.email (simple-git): ${gitUserEmail || '(not set)'}`);
+    console.log(`\n   nameResult structure: ${JSON.stringify(nameResult)}`);
+    console.log(`   emailResult structure: ${JSON.stringify(emailResult)}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.log(`❌ Error getting git config: ${errorMessage}`);
+  }
+  
+  if (gitUserName && gitUserEmail) {
+    console.log(`\n✅ Git config available (simple-git): ${gitUserName} <${gitUserEmail}>`);
     console.log('   This represents who will commit staged/unstaged changes.');
   } else {
-    console.log('\n⚠️  Git config not fully set. Run:');
+    console.log('\n⚠️  Git config not fully set (simple-git). Run:');
     console.log('   git config user.name "Your Name"');
     console.log('   git config user.email "your.email@example.com"');
+  }
+  
+  // Compare methods
+  if (gitUserNameShell && gitUserEmailShell && gitUserName && gitUserEmail) {
+    const matches = gitUserNameShell === gitUserName && gitUserEmailShell === gitUserEmail;
+    console.log(`\n📊 Comparison: Shell vs simple-git match: ${matches ? '✅ YES' : '⚠️  NO'}`);
   }
 
   // 3. Current Git State
@@ -129,20 +154,21 @@ async function main() {
   logSection('Commit Author Detection Tests');
   
   console.log('\n--- Test 1: Git Config (for uncommitted changes) ---');
-  if (gitUserName && gitUserEmail && !gitUserName.includes('ERROR') && !gitUserEmail.includes('ERROR')) {
-    console.log(`✅ Method: git config user.name/email`);
+  console.log(`   Method: simple-git getConfig() (same as CLI)`);
+  if (gitUserName && gitUserEmail) {
     console.log(`   Result: ${gitUserName} <${gitUserEmail}>`);
+    console.log(`   Status: ✅ AVAILABLE`);
     console.log(`   Use case: Staged/unstaged changes (who will commit)`);
   } else {
-    console.log(`❌ Git config not available`);
+    console.log(`   Result: NOT AVAILABLE`);
+    console.log(`   Status: ❌ Git config not set`);
+    console.log(`   This would cause CLI to FAIL LOUDLY with error message`);
   }
   
   console.log('\n--- Test 2: HEAD Commit Author (for committed changes) ---');
-  const headAuthor = runCommand('git log -1 --format=%an');
-  const headAuthorEmail = runCommand('git log -1 --format=%ae');
-  if (headAuthor && headAuthorEmail && !headAuthor.includes('ERROR') && !headAuthorEmail.includes('ERROR')) {
+  if (headAuthorName && headAuthorEmail && !headAuthorName.includes('ERROR') && !headAuthorEmail.includes('ERROR')) {
     console.log(`✅ Method: git log -1 --format=%an/%ae`);
-    console.log(`   Result: ${headAuthor} <${headAuthorEmail}>`);
+    console.log(`   Result: ${headAuthorName} <${headAuthorEmail}>`);
     console.log(`   Use case: Specific commit or fallback if git config unavailable`);
   } else {
     console.log(`❌ HEAD commit author not available`);
@@ -174,14 +200,7 @@ async function main() {
     console.log(`   ❌ Git config not set - cannot determine who will commit`);
   }
   
-  console.log('\n2. Fallback if git config unavailable:');
-  if (headAuthor && headAuthorEmail && !headAuthor.includes('ERROR')) {
-    console.log(`   ✅ Use HEAD commit author: ${headAuthor} <${headAuthorEmail}>`);
-  } else {
-    console.log(`   ❌ HEAD commit author not available`);
-  }
-  
-  console.log('\n3. For specific commits (--commit flag):');
+  console.log('\n2. For specific commits (--commit flag):');
   if (currentSha && !currentSha.includes('ERROR')) {
     console.log(`   ✅ Use git log <sha>: ${currentSha.substring(0, 7)}`);
   } else {
@@ -195,28 +214,26 @@ async function main() {
   console.log('Context: { type: "local" }');
   console.log('Environment: local');
   console.log('Commit SHA: undefined (no explicit commit)');
-  console.log('\nExpected behavior:');
-  console.log('  1. Try git config user.name/email (for uncommitted changes)');
-  console.log('  2. Fallback to HEAD commit author if git config unavailable');
+  console.log('\nExpected behavior (matches CLI exactly):');
+  console.log('  1. Use simple-git.getConfig("user.name") and getConfig("user.email")');
+  console.log('  2. If git config not set → FAIL LOUDLY with error (NO FALLBACK)');
   
   const hasStagedOrUnstaged = (stagedFiles && !stagedFiles.includes('ERROR') && stagedFiles.trim()) ||
                                (unstagedFiles && !unstagedFiles.includes('ERROR') && unstagedFiles.trim());
   
   if (hasStagedOrUnstaged) {
-    console.log('\n✅ Uncommitted changes detected - should use git config');
-    if (gitUserName && gitUserEmail && !gitUserName.includes('ERROR')) {
+    console.log('\n✅ Uncommitted changes detected - CLI will use git config');
+    if (gitUserName && gitUserEmail) {
       console.log(`   Author would be: ${gitUserName} <${gitUserEmail}>`);
+      console.log(`   ✅ This matches what CLI will collect`);
     } else {
-      console.log(`   ⚠️  Git config not set - would fallback to HEAD commit author`);
-      if (headAuthor && headAuthorEmail && !headAuthor.includes('ERROR')) {
-        console.log(`   Fallback author: ${headAuthor} <${headAuthorEmail}>`);
-      }
+      console.log(`   ❌ Git config not set - CLI will FAIL LOUDLY`);
+      console.log(`   Error message: "Git config user.name or user.email is not set. Run: git config user.name "Your Name" && git config user.email "your.email@example.com"`);
     }
   } else {
-    console.log('\n⚠️  No uncommitted changes - would use HEAD commit author');
-    if (headAuthor && headAuthorEmail && !headAuthor.includes('ERROR')) {
-      console.log(`   Author would be: ${headAuthor} <${headAuthorEmail}>`);
-    }
+    console.log('\n⚠️  No uncommitted changes detected');
+    console.log('   Note: CLI still uses git config (not HEAD commit) for local environment');
+    console.log('   This represents who WILL commit the changes, not who committed previous changes');
   }
 
   console.log('\n' + '='.repeat(60));

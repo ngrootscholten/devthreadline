@@ -57,9 +57,12 @@ export async function collectMetadata(
     // For local environment without explicit commit SHA:
     // Use git config (who will commit staged/unstaged changes)
     // No fallbacks - if git config fails, the error propagates and fails the check
+    console.log('[DEBUG] Local environment - calling getGitConfigUser()');
     const author = await getGitConfigUser(repoRoot);
+    console.log(`[DEBUG] getGitConfigUser returned: ${JSON.stringify(author)}`);
     metadata.commitAuthorName = author.name;
     metadata.commitAuthorEmail = author.email;
+    console.log(`[DEBUG] metadata after assignment: commitAuthorName=${metadata.commitAuthorName}, commitAuthorEmail=${metadata.commitAuthorEmail}`);
   }
 
   // Collect PR/MR title (environment-specific)

@@ -156,6 +156,14 @@ export async function checkCommand(options: {
     // 3. Collect metadata (commit SHA, commit message, PR title)
     const metadata = await collectMetadata(context, environment, repoRoot);
     
+    // Debug: Log collected metadata
+    console.log(`[DEBUG] Metadata after collectMetadata: ${JSON.stringify(metadata)}`);
+    if (metadata.commitAuthorName || metadata.commitAuthorEmail) {
+      console.log(chalk.gray(`   Author: ${metadata.commitAuthorName} <${metadata.commitAuthorEmail}>`));
+    } else {
+      console.log(`[DEBUG] No author info - commitAuthorName=${metadata.commitAuthorName}, commitAuthorEmail=${metadata.commitAuthorEmail}`);
+    }
+    
     if (gitDiff.changedFiles.length === 0) {
       console.error(chalk.red('❌ Error: No changes detected.'));
       console.error(chalk.red('   Threadline check requires code changes to analyze.'));
