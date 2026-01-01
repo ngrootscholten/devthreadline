@@ -54,6 +54,7 @@ interface ThreadlineDetail {
   relevantFiles: string[];
   filteredDiff: string | null;
   filesInFilteredDiff: string[];
+  allChangedFiles?: string[];
   result: {
     id: string;
     status: string;
@@ -389,12 +390,85 @@ export default function CheckDetailPage() {
                             </div>
                           )}
 
-                          {/* Files Sent to LLM */}
-                          {detail.filesInFilteredDiff && detail.filesInFilteredDiff.length > 0 && (
+                          {/* Files Changed vs Relevant Files */}
+                          {detail.allChangedFiles && detail.allChangedFiles.length > 0 && (
+                            <div>
+                              <h4 className="text-sm font-semibold text-slate-400 mb-2">
+                                Files Changed ({detail.allChangedFiles.length})
+                              </h4>
+                              <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800 space-y-4">
+                                {/* Relevant Files */}
+                                {detail.relevantFiles && detail.relevantFiles.length > 0 ? (
+                                  <div>
+                                    <p className="text-sm font-semibold text-green-400 mb-2">
+                                      ✓ Relevant to this threadline ({detail.relevantFiles.length})
+                                    </p>
+                                    <ul className="list-disc list-inside text-slate-300 ml-4">
+                                      {detail.relevantFiles.map((file: string, idx: number) => (
+                                        <li key={idx} className="font-mono text-sm">
+                                          {file}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <p className="text-sm font-semibold text-yellow-400 mb-2">
+                                      ⚠️ None of the changed files match this threadline's patterns
+                                    </p>
+                                    <p className="text-xs text-slate-500 mb-2">
+                                      Patterns: {detail.patterns?.join(', ') || 'none'}
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                {/* Not Relevant Files */}
+                                {detail.relevantFiles && detail.relevantFiles.length > 0 && detail.relevantFiles.length < detail.allChangedFiles.length && (
+                                  <div className="border-t border-slate-700 pt-4">
+                                    <p className="text-sm font-semibold text-slate-500 mb-2">
+                                      Not relevant ({detail.allChangedFiles.length - detail.relevantFiles.length})
+                                    </p>
+                                    <ul className="list-disc list-inside text-slate-500 ml-4">
+                                      {detail.allChangedFiles
+                                        .filter((file: string) => !detail.relevantFiles.includes(file))
+                                        .map((file: string, idx: number) => (
+                                          <li key={idx} className="font-mono text-sm">
+                                            {file}
+                                          </li>
+                                        ))}
+                                    </ul>
+                                  </div>
+                                )}
+                                
+                                {/* Show all files when none are relevant */}
+                                {(!detail.relevantFiles || detail.relevantFiles.length === 0) && (
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-500 mb-2">
+                                      All changed files:
+                                    </p>
+                                    <ul className="list-disc list-inside text-slate-500 ml-4">
+                                      {detail.allChangedFiles.map((file: string, idx: number) => (
+                                        <li key={idx} className="font-mono text-sm">
+                                          {file}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Files Sent to LLM (if different from relevant files) */}
+                          {detail.filesInFilteredDiff && detail.filesInFilteredDiff.length > 0 && 
+                           detail.filesInFilteredDiff.length !== detail.relevantFiles?.length && (
                             <div>
                               <h4 className="text-sm font-semibold text-slate-400 mb-2">
                                 Files Sent to LLM ({detail.filesInFilteredDiff.length})
                               </h4>
+                              <p className="text-xs text-slate-500 mb-2">
+                                Note: Some relevant files may not appear in the diff if they had no actual code changes.
+                              </p>
                               <ul className="list-disc list-inside text-slate-300 bg-slate-900/50 p-4 rounded-lg border border-slate-800">
                                 {detail.filesInFilteredDiff.map((file: string, idx: number) => (
                                   <li key={idx} className="font-mono text-sm">
@@ -422,13 +496,26 @@ export default function CheckDetailPage() {
                           )}
 
                           {/* Filtered Diff - Collapsed by default */}
-                          {detail.filteredDiff && (
+                          {detail.filteredDiff !== null && detail.filteredDiff !== undefined && (
                             <details className="group">
                               <summary className="cursor-pointer text-sm font-semibold text-slate-400 mb-2 hover:text-slate-300 transition-colors">
                                 Filtered Diff
                               </summary>
                               <div className="mt-2 bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
-                                <DiffViewer diff={detail.filteredDiff} />
+                                {detail.filteredDiff && detail.filteredDiff.trim() ? (
+                                  <DiffViewer diff={detail.filteredDiff} />
+                                ) : (
+                                  <div className="p-6 text-center">
+                                    <p className="text-slate-400 text-sm">
+                                      None of the files that were changed matched this threadline's patterns, so there is no filtered diff to display.
+                                    </p>
+                                    {detail.relevantFiles && detail.relevantFiles.length === 0 && (
+                                      <p className="text-slate-500 text-xs mt-2">
+                                        This threadline checks files matching: {detail.patterns?.join(', ') || 'no patterns'}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </details>
                           )}

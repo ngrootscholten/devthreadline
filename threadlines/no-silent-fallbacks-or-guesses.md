@@ -11,11 +11,11 @@ context_files: []
 
 # No Silent Fallbacks or Guesses
 
-Our code should be fact-based and show errors clearly. We should never silently fail or make assumptions without clear evidence.
+Our code should be fact-based and show errors clearly. We should never silently fail or make assumptions without clear evidence.  This Threadline is mainly intended to detect a common behaviour of AI Agents.
 
 ## Guidelines
 
-1. **No silent fallbacks** - Don't catch errors and silently continue or return null without logging
+1. **No silent fallbacks** - Don't catch errors and silently continue or return null without logging. Multiple silent fallbacks make code harder to maintain because you lose track of which code paths were intended or expected to work.
 2. **No guesses** - Don't assume values or make up defaults without clear evidence
 3. **Show errors clearly** - When something fails, log the error with context so it can be diagnosed
 4. **Fact-based decisions** - Base decisions on actual data, not assumptions

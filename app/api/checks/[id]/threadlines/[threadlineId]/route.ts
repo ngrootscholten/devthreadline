@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '../../../../auth/[...nextauth]/route';
 import { getPool } from '../../../../../lib/db';
+import { extractFilesFromDiff } from '../../../../../lib/utils/diff-filter';
 
 /**
  * GET /api/checks/[id]/threadlines/[threadlineId]
@@ -69,6 +70,17 @@ export async function GET(
 
     const row = threadlineResult.rows[0];
 
+    // Get the full diff to extract all changed files
+    const diffResult = await pool.query(
+      `SELECT diff_content FROM check_diffs WHERE check_id = $1`,
+      [checkId]
+    );
+    
+    let allChangedFiles: string[] = [];
+    if (diffResult.rows.length > 0 && diffResult.rows[0].diff_content) {
+      allChangedFiles = extractFilesFromDiff(diffResult.rows[0].diff_content);
+    }
+
     return NextResponse.json({
       threadline: {
         checkThreadlineId: row.check_threadline_id,
@@ -78,9 +90,10 @@ export async function GET(
         content: row.threadline_content,
         contextFiles: row.context_files,
         contextContent: row.context_content,
-        relevantFiles: row.relevant_files,
+        relevantFiles: row.relevant_files || [],
         filteredDiff: row.filtered_diff,
-        filesInFilteredDiff: row.files_in_filtered_diff,
+        filesInFilteredDiff: row.files_in_filtered_diff || [],
+        allChangedFiles: allChangedFiles,
         result: row.result_id ? {
           id: row.result_id,
           status: row.status,
