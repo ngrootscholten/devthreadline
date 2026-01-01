@@ -1,6 +1,6 @@
 {
   "name": "threadlines",
-  "version": "0.1.28",
+  "version": "0.1.29",
   "description": "Threadline CLI - AI-powered linter based on your natural language documentation",
   "main": "dist/index.js",
   "bin": {
@@ -27,14 +27,17 @@
     "directory": "packages/cli"
   },
   "scripts": {
-    "build": "npm run check && tsc",
+    "build": "npm run check && (npm run threadlines || exit 0) && tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "prepublishOnly": "npm run build",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "typecheck": "tsc --noEmit",
-    "check": "npm run lint && npm run typecheck"
+    "check": "npm run lint && npm run typecheck",
+    "threadlines": "npx -y threadlines check",
+    "threadlines:local": "npx -y threadlines check || true",
+    "check:all": "npm run check && npm run threadlines"
   },
   "dependencies": {
     "axios": "^1.7.9",

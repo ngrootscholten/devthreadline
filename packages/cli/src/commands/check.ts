@@ -248,42 +248,73 @@ function displayResults(response: ReviewResponse, showFull: boolean) {
     console.log('\n' + chalk.blue('ℹ️  ' + message));
   }
 
-  console.log('\n' + chalk.bold('Results:\n'));
-  console.log(chalk.gray(`${metadata.totalThreadlines} threadlines checked`));
-  
   const notRelevant = results.filter((r: ExpertResult) => r.status === 'not_relevant').length;
   const compliant = results.filter((r: ExpertResult) => r.status === 'compliant').length;
   const attention = results.filter((r: ExpertResult) => r.status === 'attention').length;
+  const attentionItems = filteredResults.filter((r: ExpertResult) => r.status === 'attention');
 
-  if (showFull) {
-    // Show all results when --full flag is used
-    if (notRelevant > 0) {
-      console.log(chalk.gray(`  ${notRelevant} not relevant`));
-    }
-    if (compliant > 0) {
-      console.log(chalk.green(`  ${compliant} compliant`));
-    }
-    if (attention > 0) {
-      console.log(chalk.yellow(`  ${attention} attention`));
-    }
-  } else {
-    // Default: only show attention items
-    if (attention > 0) {
-      console.log(chalk.yellow(`  ${attention} attention`));
-    }
+  // Build summary parts
+  const summaryParts: string[] = [];
+  if (notRelevant > 0) {
+    summaryParts.push(`${notRelevant} not relevant`);
   }
-
+  if (compliant > 0) {
+    summaryParts.push(`${compliant} compliant`);
+  }
+  if (attention > 0) {
+    summaryParts.push(`${attention} attention`);
+  }
   if (metadata.timedOut > 0) {
-    console.log(chalk.yellow(`  ${metadata.timedOut} timed out`));
+    summaryParts.push(`${metadata.timedOut} timed out`);
   }
   if (metadata.errors > 0) {
-    console.log(chalk.red(`  ${metadata.errors} errors`));
+    summaryParts.push(`${metadata.errors} errors`);
   }
 
-  console.log('');
+  // Display informational message if present (e.g., zero diffs)
+  if (message) {
+    console.log('\n' + chalk.blue('ℹ️  ' + message));
+  }
+
+  // Show success message with breakdown if no issues
+  if (attention === 0 && metadata.timedOut === 0 && metadata.errors === 0) {
+    const summary = summaryParts.length > 0 ? ` (${summaryParts.join(', ')})` : '';
+    console.log('\n' + chalk.green(`✓ Threadline check passed${summary}`));
+    console.log(chalk.gray(`  ${metadata.totalThreadlines} threadline${metadata.totalThreadlines !== 1 ? 's' : ''} checked\n`));
+  } else {
+    // Show detailed breakdown when there are issues
+    console.log('\n' + chalk.bold('Results:\n'));
+    console.log(chalk.gray(`${metadata.totalThreadlines} threadlines checked`));
+    
+    if (showFull) {
+      // Show all results when --full flag is used
+      if (notRelevant > 0) {
+        console.log(chalk.gray(`  ${notRelevant} not relevant`));
+      }
+      if (compliant > 0) {
+        console.log(chalk.green(`  ${compliant} compliant`));
+      }
+      if (attention > 0) {
+        console.log(chalk.yellow(`  ${attention} attention`));
+      }
+    } else {
+      // Default: only show attention items
+      if (attention > 0) {
+        console.log(chalk.yellow(`  ${attention} attention`));
+      }
+    }
+
+    if (metadata.timedOut > 0) {
+      console.log(chalk.yellow(`  ${metadata.timedOut} timed out`));
+    }
+    if (metadata.errors > 0) {
+      console.log(chalk.red(`  ${metadata.errors} errors`));
+    }
+
+    console.log('');
+  }
 
   // Show attention items
-  const attentionItems = filteredResults.filter((r: ExpertResult) => r.status === 'attention');
   if (attentionItems.length > 0) {
     for (const item of attentionItems) {
       console.log(chalk.yellow(`⚠️  ${item.expertId}`));
@@ -298,17 +329,6 @@ function displayResults(response: ReviewResponse, showFull: boolean) {
       }
     }
     console.log('');
-  }
-
-  // Show compliant items (only when --full flag is used)
-  if (showFull) {
-    const compliantItems = filteredResults.filter((r: ExpertResult) => r.status === 'compliant');
-    if (compliantItems.length > 0 && attentionItems.length === 0) {
-      console.log(chalk.green('✓ All threadlines passed!\n'));
-    }
-  } else if (attentionItems.length === 0 && compliant > 0) {
-    // Default: show success message if no attention items
-    console.log(chalk.green('✓ All threadlines passed!\n'));
   }
 }
 
