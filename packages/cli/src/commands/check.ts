@@ -12,6 +12,7 @@ import { getDiffForContext } from '../utils/git-diff-executor';
 import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
+import simpleGit from 'simple-git';
 
 // Get CLI version from package.json
 const packageJsonPath = path.join(__dirname, '../../package.json');
@@ -27,9 +28,25 @@ export async function checkCommand(options: {
   folder?: string;
   files?: string[];
 }) {
-  const repoRoot = process.cwd();
+  const cwd = process.cwd();
+  const repoRoot = cwd; // Keep for backward compatibility with rest of function
   
   console.log(chalk.blue(`🔍 Threadline CLI v${CLI_VERSION}: Checking code against your threadlines...\n`));
+  
+  // Get git root for consistent file paths across monorepo
+  const git = simpleGit(cwd);
+  let gitRoot: string;
+  try {
+    const isRepo = await git.checkIsRepo();
+    if (!isRepo) {
+      console.error(chalk.red('❌ Error: Not a git repository. Threadline requires a git repository.'));
+      process.exit(1);
+    }
+    gitRoot = (await git.revparse(['--show-toplevel'])).trim();
+  } catch {
+    console.error(chalk.red('❌ Error: Failed to get git root. Make sure you are in a git repository.'));
+    process.exit(1);
+  }
 
   // Pre-flight check: Validate ALL required environment variables at once
   const apiKey = getThreadlineApiKey();
@@ -71,7 +88,7 @@ export async function checkCommand(options: {
   try {
     // 1. Find and validate threadlines
     console.log(chalk.gray('📋 Finding threadlines...'));
-    const threadlines = await findThreadlines(repoRoot);
+    const threadlines = await findThreadlines(cwd, gitRoot);
     console.log(chalk.green(`✓ Found ${threadlines.length} threadline(s)\n`));
 
     if (threadlines.length === 0) {

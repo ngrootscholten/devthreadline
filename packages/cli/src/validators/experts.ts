@@ -5,8 +5,13 @@ import { Threadline, ThreadlineValidationResult } from '../types/expert';
 
 const REQUIRED_FIELDS = ['id', 'version', 'patterns'];
 
-export async function findThreadlines(repoRoot: string): Promise<Threadline[]> {
-  const expertsDir = path.join(repoRoot, 'threadlines');
+/**
+ * Find and validate all threadlines in the threadlines folder.
+ * @param searchRoot - Where to look for threadlines (usually cwd)
+ * @param gitRoot - Git repository root (for consistent filePath across monorepo)
+ */
+export async function findThreadlines(searchRoot: string, gitRoot: string): Promise<Threadline[]> {
+  const expertsDir = path.join(searchRoot, 'threadlines');
   
   if (!fs.existsSync(expertsDir)) {
     throw new Error('No /threadlines folder found. Run `npx threadlines init` to create your first threadline.');
@@ -22,7 +27,7 @@ export async function findThreadlines(repoRoot: string): Promise<Threadline[]> {
   const threadlines: Threadline[] = [];
 
   for (const file of expertFiles) {
-    const result = await validateThreadline(path.join(expertsDir, file), repoRoot);
+    const result = await validateThreadline(path.join(expertsDir, file), searchRoot, gitRoot);
     if (result.valid && result.threadline) {
       threadlines.push(result.threadline);
     } else {
@@ -33,9 +38,16 @@ export async function findThreadlines(repoRoot: string): Promise<Threadline[]> {
   return threadlines;
 }
 
+/**
+ * Validate a threadline file and extract its configuration.
+ * @param filePath - Absolute path to the threadline file
+ * @param searchRoot - Where threadlines were searched from (for context file resolution)
+ * @param gitRoot - Git repository root (for consistent filePath in database)
+ */
 export async function validateThreadline(
   filePath: string,
-  repoRoot: string
+  searchRoot: string,
+  gitRoot: string
 ): Promise<ThreadlineValidationResult> {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
@@ -76,10 +88,10 @@ export async function validateThreadline(
       if (!Array.isArray(frontmatter.context_files)) {
         errors.push('context_files must be an array');
       } else {
-        // Check if context files exist
+        // Check if context files exist (relative to searchRoot)
         for (const contextFile of frontmatter.context_files) {
           if (typeof contextFile === 'string') {
-            const fullPath = path.join(repoRoot, contextFile);
+            const fullPath = path.join(searchRoot, contextFile);
             if (!fs.existsSync(fullPath)) {
               errors.push(`Context file not found: ${contextFile}`);
             }
@@ -103,13 +115,14 @@ export async function validateThreadline(
     }
 
     // Type assertions for required fields (already validated above)
+    // filePath is relative to gitRoot for consistent identification across monorepo
     const threadline: Threadline = {
       id: frontmatter.id as string,
       version: frontmatter.version as string,
       patterns: frontmatter.patterns as string[],
       contextFiles: (Array.isArray(frontmatter.context_files) ? frontmatter.context_files.filter((f): f is string => typeof f === 'string') : []) as string[],
       content: body,
-      filePath: path.relative(repoRoot, filePath)
+      filePath: path.relative(gitRoot, filePath)
     };
 
     return { valid: true, threadline };

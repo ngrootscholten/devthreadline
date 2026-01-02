@@ -3,7 +3,7 @@ import { ReviewRequest } from '../../api/threadline-check/route';
 import { ProcessThreadlinesResponse } from '../processors/expert';
 import { ExpertResult } from '../types/result';
 import { ProcessThreadlineResult } from '../processors/single-expert';
-import { generateVersionHash, generateIdentityHash } from './threadline-hash';
+import { generateVersionHash, generateIdentityHash, generateContextHash } from './threadline-hash';
 
 interface StoreCheckParams {
   request: ReviewRequest;
@@ -194,25 +194,65 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
         }
       }
 
-      // Step 2: Insert check_threadlines with reference to definition
+      // Step 2: Process context files - deduplicate into context_file_snapshots
+      const contextSnapshotIds: string[] = [];
+      let contextFilesReused = 0;
+      let contextFilesCreated = 0;
+
+      if (threadline.contextContent) {
+        for (const [filePath, content] of Object.entries(threadline.contextContent)) {
+          const contentHash = generateContextHash({
+            account: request.account,
+            repoName: request.repoName || null,
+            filePath,
+            content,
+          });
+
+          // Check if this exact content already exists
+          const existingSnapshot = await pool.query(
+            `SELECT id FROM context_file_snapshots WHERE content_hash = $1 LIMIT 1`,
+            [contentHash]
+          );
+
+          if (existingSnapshot.rows.length > 0) {
+            // Reuse existing snapshot
+            contextSnapshotIds.push(existingSnapshot.rows[0].id);
+            contextFilesReused++;
+          } else {
+            // Create new snapshot
+            const newSnapshot = await pool.query(
+              `INSERT INTO context_file_snapshots (account, repo_name, file_path, content, content_hash)
+               VALUES ($1, $2, $3, $4, $5)
+               RETURNING id`,
+              [request.account, request.repoName || null, filePath, content, contentHash]
+            );
+            contextSnapshotIds.push(newSnapshot.rows[0].id);
+            contextFilesCreated++;
+          }
+        }
+      }
+
+      if (contextFilesReused > 0 || contextFilesCreated > 0) {
+        console.log(`   📄 Context files: ${contextFilesReused} reused, ${contextFilesCreated} new`);
+      }
+
+      // Step 3: Insert check_threadlines with reference to definition and context snapshots
       const threadlineInsertResult = await pool.query(
         `INSERT INTO check_threadlines (
           check_id,
           threadline_id,
           threadline_definition_id,
-          context_files,
-          context_content,
+          context_snapshot_ids,
           relevant_files,
           filtered_diff,
           files_in_filtered_diff
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id`,
         [
           checkId,
           threadline.id,
           threadlineDefinitionId,
-          threadline.contextFiles ? JSON.stringify(threadline.contextFiles) : null,
-          threadline.contextContent ? JSON.stringify(threadline.contextContent) : null,
+          contextSnapshotIds,
           isProcessThreadlineResult ? JSON.stringify(threadlineResult.relevantFiles) : null,
           isProcessThreadlineResult ? threadlineResult.filteredDiff : null,
           isProcessThreadlineResult ? JSON.stringify(threadlineResult.filesInFilteredDiff) : null

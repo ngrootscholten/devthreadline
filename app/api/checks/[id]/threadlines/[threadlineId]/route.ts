@@ -48,8 +48,7 @@ export async function GET(
         td.threadline_patterns,
         td.threadline_content,
         td.threadline_file_path,
-        ct.context_files,
-        ct.context_content,
+        ct.context_snapshot_ids,
         ct.relevant_files,
         ct.filtered_diff,
         ct.files_in_filtered_diff,
@@ -73,6 +72,27 @@ export async function GET(
 
     const row = threadlineResult.rows[0];
 
+    // Fetch context files from snapshots (second query for simplicity)
+    let contextFiles: string[] = [];
+    let contextContent: Record<string, string> = {};
+    
+    const snapshotIds = row.context_snapshot_ids || [];
+    if (snapshotIds.length > 0) {
+      const snapshotsResult = await pool.query(
+        `SELECT file_path, content FROM context_file_snapshots WHERE id = ANY($1)`,
+        [snapshotIds]
+      );
+      
+      contextFiles = snapshotsResult.rows.map((s: { file_path: string }) => s.file_path);
+      contextContent = snapshotsResult.rows.reduce(
+        (acc: Record<string, string>, s: { file_path: string; content: string }) => {
+          acc[s.file_path] = s.content;
+          return acc;
+        },
+        {}
+      );
+    }
+
     // Get the full diff to extract all changed files
     const diffResult = await pool.query(
       `SELECT diff_content FROM check_diffs WHERE check_id = $1`,
@@ -92,8 +112,8 @@ export async function GET(
         version: row.threadline_version,
         patterns: row.threadline_patterns,
         content: row.threadline_content,
-        contextFiles: row.context_files,
-        contextContent: row.context_content,
+        contextFiles: contextFiles,
+        contextContent: contextContent,
         relevantFiles: row.relevant_files || [],
         filteredDiff: row.filtered_diff,
         filesInFilteredDiff: row.files_in_filtered_diff || [],

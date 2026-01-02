@@ -170,13 +170,25 @@ CREATE TABLE IF NOT EXISTS threadline_definitions (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Context file snapshots - deduplicated storage of context file contents
+-- Each unique (account, repo_name, file_path, content) combination is stored once
+CREATE TABLE IF NOT EXISTS context_file_snapshots (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  account TEXT NOT NULL,
+  repo_name TEXT,
+  file_path TEXT NOT NULL,
+  content TEXT NOT NULL,
+  content_hash TEXT NOT NULL, -- SHA256 of (account, repo_name, file_path, content) for deduplication
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+
 CREATE TABLE IF NOT EXISTS check_threadlines (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   check_id TEXT NOT NULL REFERENCES checks(id) ON DELETE CASCADE,
   threadline_id TEXT NOT NULL, -- Kept for query convenience
   threadline_definition_id TEXT NOT NULL REFERENCES threadline_definitions(id), -- Reference to definition (contains file_path, patterns, content, version)
-  context_files JSONB,
-  context_content JSONB,
+  context_snapshot_ids TEXT[], -- Array of context_file_snapshots IDs (replaces context_files + context_content)
   relevant_files JSONB, -- Files that matched threadline patterns
   filtered_diff TEXT, -- The actual diff sent to LLM (filtered to only relevant files)
   files_in_filtered_diff JSONB, -- Files actually present in the filtered diff sent to LLM
@@ -219,6 +231,11 @@ CREATE INDEX IF NOT EXISTS idx_threadline_definitions_created_at ON threadline_d
 CREATE INDEX IF NOT EXISTS idx_threadline_definitions_version_hash ON threadline_definitions(version_hash);
 CREATE INDEX IF NOT EXISTS idx_threadline_definitions_identity_hash ON threadline_definitions(identity_hash);
 
+-- Indexes for context_file_snapshots
+CREATE INDEX IF NOT EXISTS idx_context_file_snapshots_content_hash ON context_file_snapshots(content_hash);
+CREATE INDEX IF NOT EXISTS idx_context_file_snapshots_account ON context_file_snapshots(account);
+CREATE INDEX IF NOT EXISTS idx_context_file_snapshots_account_repo ON context_file_snapshots(account, repo_name);
+
 -- Indexes for check_threadlines
 CREATE INDEX IF NOT EXISTS idx_check_threadlines_check_id ON check_threadlines(check_id);
 CREATE INDEX IF NOT EXISTS idx_check_threadlines_threadline_id ON check_threadlines(threadline_id);
@@ -231,6 +248,7 @@ CREATE INDEX IF NOT EXISTS idx_check_diffs_check_id ON check_diffs(check_id);
 -- Enable RLS on audit tables
 ALTER TABLE checks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE threadline_definitions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE context_file_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE check_threadlines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE check_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE check_diffs ENABLE ROW LEVEL SECURITY;

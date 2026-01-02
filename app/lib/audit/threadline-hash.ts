@@ -17,6 +17,13 @@ interface IdentityHashInput {
   account: string;
 }
 
+interface ContextFileHashInput {
+  account: string;
+  repoName: string | null;
+  filePath: string;
+  content: string;
+}
+
 /**
  * Generate a version-specific hash for a threadline definition.
  * This hash uniquely identifies an exact version of a threadline.
@@ -46,6 +53,21 @@ export function generateIdentityHash(input: IdentityHashInput): string {
     filePath: input.filePath,
     repoName: input.repoName || '',
     account: input.account,
+  });
+  return crypto.createHash('sha256').update(data).digest('hex');
+}
+
+/**
+ * Generate a content hash for a context file snapshot.
+ * This hash uniquely identifies a specific version of a context file.
+ * Same hash = exact same file content, can be reused.
+ */
+export function generateContextHash(input: ContextFileHashInput): string {
+  const data = JSON.stringify({
+    account: input.account,
+    repoName: input.repoName || '',
+    filePath: input.filePath,
+    content: input.content,
   });
   return crypto.createHash('sha256').update(data).digest('hex');
 }
