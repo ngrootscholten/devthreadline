@@ -120,8 +120,10 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
           threadline_version,
           threadline_patterns,
           threadline_content,
+          repo_name,
+          account,
           predecessor_id
-        ) VALUES ($1, $2, $3, $4, $5, $6)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id`,
         [
           threadline.id,
@@ -129,6 +131,8 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
           threadline.version,
           JSON.stringify(threadline.patterns),
           threadline.content,
+          request.repoName || null,
+          request.account,
           null // No predecessor for now (no deduplication)
         ]
       );

@@ -21,6 +21,9 @@ export function Navigation() {
                 <Link href="/dashboard" className="text-slate-300 hover:text-white transition-colors">
                   Dashboard
                 </Link>
+                <Link href="/threadlines" className="text-slate-300 hover:text-white transition-colors">
+                  Threadlines
+                </Link>
                 <Link href="/docs/getting-started" className="text-slate-300 hover:text-white transition-colors">
                   Help
                 </Link>
