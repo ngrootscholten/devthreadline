@@ -24,8 +24,50 @@ export async function GET(req: NextRequest) {
     const limit = Math.max(1, Math.min(100, parseInt(searchParams.get('limit') || '20', 10))); // Cap at 100, default 20
     const offset = (page - 1) * limit;
 
+    // Parse filter params
+    const authorFilter = searchParams.get('author');
+    const environmentFilter = searchParams.get('environment');
+    const repoFilter = searchParams.get('repo');
+
     const pool = getPool();
     
+    // Build WHERE conditions for filters
+    const whereConditions: string[] = ['c.user_id = $1'];
+    const queryParams: any[] = [session.user.id];
+    let paramIndex = 2;
+
+    if (authorFilter) {
+      // Author filter format: "Name|email" or "Name|" or "|email"
+      const [name, email] = authorFilter.split('|');
+      if (name && email) {
+        whereConditions.push(`c.commit_author_name = $${paramIndex} AND c.commit_author_email = $${paramIndex + 1}`);
+        queryParams.push(name, email);
+        paramIndex += 2;
+      } else if (name) {
+        whereConditions.push(`c.commit_author_name = $${paramIndex}`);
+        queryParams.push(name);
+        paramIndex += 1;
+      } else if (email) {
+        whereConditions.push(`c.commit_author_email = $${paramIndex}`);
+        queryParams.push(email);
+        paramIndex += 1;
+      }
+    }
+
+    if (environmentFilter) {
+      whereConditions.push(`c.environment = $${paramIndex}`);
+      queryParams.push(environmentFilter);
+      paramIndex += 1;
+    }
+
+    if (repoFilter) {
+      whereConditions.push(`c.repo_name = $${paramIndex}`);
+      queryParams.push(repoFilter);
+      paramIndex += 1;
+    }
+
+    const whereClause = whereConditions.join(' AND ');
+
     // Get total count and paginated results in one query
     // Use AT TIME ZONE 'UTC' to explicitly mark timestamp as UTC before formatting
     const result = await pool.query(
@@ -52,11 +94,11 @@ export async function GET(req: NextRequest) {
       FROM checks c
       LEFT JOIN check_threadlines ct ON c.id = ct.check_id
       LEFT JOIN check_results cr ON ct.id = cr.check_threadline_id
-      WHERE c.user_id = $1
+      WHERE ${whereClause}
       GROUP BY c.id
       ORDER BY c.created_at DESC
-      LIMIT $2 OFFSET $3`,
-      [session.user.id, limit, offset]
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...queryParams, limit, offset]
     );
 
     const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;

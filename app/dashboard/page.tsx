@@ -45,6 +45,12 @@ interface Pagination {
   totalPages: number;
 }
 
+interface FilterOptions {
+  authors: Array<{ value: string; label: string }>;
+  environments: Array<{ value: string; label: string }>;
+  repositories: Array<{ value: string; label: string }>;
+}
+
 function DashboardPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -56,14 +62,49 @@ function DashboardPageContent() {
   const [summaries, setSummaries] = useState<Record<string, CheckSummary>>({});
   const [loadingSummaries, setLoadingSummaries] = useState<Set<string>>(new Set());
   const [summaryErrors, setSummaryErrors] = useState<Set<string>>(new Set());
+  const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+  const [authorDropdownOpen, setAuthorDropdownOpen] = useState(false);
 
-  // Get current page from URL, default to 1
+  // Get current page and filters from URL, default to 1
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
+  const authorFilter = searchParams.get('author') || '';
+  const environmentFilter = searchParams.get('environment') || '';
+  const repoFilter = searchParams.get('repo') || '';
+
+  // Get selected author for display
+  const selectedAuthor = authorFilter
+    ? filterOptions?.authors.find(a => a.value === authorFilter)
+    : null;
+
+  const fetchFilterOptions = useCallback(async () => {
+    try {
+      const response = await fetch('/api/checks/filters', {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch filter options");
+      }
+
+      const data = await response.json();
+      setFilterOptions(data);
+    } catch (err) {
+      console.error("Failed to fetch filter options:", err);
+      // Don't set error state - filters are optional
+    }
+  }, []);
 
   const fetchChecks = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/checks?page=${currentPage}&limit=20`, {
+      const params = new URLSearchParams();
+      params.set('page', currentPage.toString());
+      params.set('limit', '20');
+      if (authorFilter) params.set('author', authorFilter);
+      if (environmentFilter) params.set('environment', environmentFilter);
+      if (repoFilter) params.set('repo', repoFilter);
+
+      const response = await fetch(`/api/checks?${params.toString()}`, {
         credentials: "include",
       });
 
@@ -79,21 +120,54 @@ function DashboardPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage]);
+  }, [currentPage, authorFilter, environmentFilter, repoFilter]);
 
   useEffect(() => {
     if (status === "authenticated") {
+      fetchFilterOptions();
       fetchChecks();
     } else if (status === "unauthenticated") {
       router.push("/auth/signin");
     }
-  }, [status, fetchChecks, router]);
+  }, [status, fetchChecks, fetchFilterOptions, router]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && pagination && newPage <= pagination.totalPages) {
-      router.push(`/dashboard?page=${newPage}`);
+      const params = new URLSearchParams();
+      params.set('page', newPage.toString());
+      if (authorFilter) params.set('author', authorFilter);
+      if (environmentFilter) params.set('environment', environmentFilter);
+      if (repoFilter) params.set('repo', repoFilter);
+      router.push(`/dashboard?${params.toString()}`);
     }
   };
+
+  const handleFilterChange = (filterType: 'author' | 'environment' | 'repo', value: string) => {
+    const params = new URLSearchParams();
+    params.set('page', '1'); // Reset to page 1 when filters change
+    
+    if (filterType === 'author') {
+      if (value) params.set('author', value);
+      if (environmentFilter) params.set('environment', environmentFilter);
+      if (repoFilter) params.set('repo', repoFilter);
+    } else if (filterType === 'environment') {
+      if (authorFilter) params.set('author', authorFilter);
+      if (value) params.set('environment', value);
+      if (repoFilter) params.set('repo', repoFilter);
+    } else if (filterType === 'repo') {
+      if (authorFilter) params.set('author', authorFilter);
+      if (environmentFilter) params.set('environment', environmentFilter);
+      if (value) params.set('repo', value);
+    }
+    
+    router.push(`/dashboard?${params.toString()}`);
+  };
+
+  const handleClearFilters = () => {
+    router.push('/dashboard?page=1');
+  };
+
+  const hasActiveFilters = authorFilter || environmentFilter || repoFilter;
 
   const fetchSummary = useCallback(async (checkId: string) => {
     // Don't fetch if already loaded or currently loading
@@ -249,6 +323,125 @@ function DashboardPageContent() {
       <section className="max-w-7xl mx-auto px-6 py-12">
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
           <h1 className="text-4xl font-bold mb-3 text-white">Dashboard</h1>
+
+          {/* Filters */}
+          {filterOptions && (
+            <div className="mb-6 flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2 relative">
+                <label htmlFor="author-filter" className="text-sm text-slate-400">Author:</label>
+                <div className="relative">
+                  <button
+                    id="author-filter"
+                    type="button"
+                    onClick={() => setAuthorDropdownOpen(!authorDropdownOpen)}
+                    className="bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-green-500/50 min-w-[200px] text-left flex items-center justify-between"
+                  >
+                    {selectedAuthor ? (
+                      <span className="truncate">
+                        {selectedAuthor.value.split('|')[0] || selectedAuthor.value.split('|')[1]}
+                      </span>
+                    ) : (
+                      <span>All Authors</span>
+                    )}
+                    <span className="ml-2 text-slate-500 flex-shrink-0">▼</span>
+                  </button>
+                  {authorDropdownOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setAuthorDropdownOpen(false)}
+                      />
+                      <div className="absolute z-20 mt-1 bg-slate-800 border border-slate-700 rounded shadow-lg max-h-60 overflow-auto min-w-[200px]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleFilterChange('author', '');
+                            setAuthorDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-700 transition-colors ${
+                            !authorFilter ? 'text-green-400' : 'text-slate-300'
+                          }`}
+                        >
+                          All Authors
+                        </button>
+                        {filterOptions.authors.map((author) => {
+                          const [name, email] = author.value.split('|');
+                          const isSelected = authorFilter === author.value;
+                          return (
+                            <button
+                              key={author.value}
+                              type="button"
+                              onClick={() => {
+                                handleFilterChange('author', author.value);
+                                setAuthorDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-700 transition-colors ${
+                                isSelected ? 'text-green-400 bg-slate-700/50' : 'text-slate-300'
+                              }`}
+                            >
+                              {name && email ? (
+                                <>
+                                  <div>{name}</div>
+                                  <div className="text-xs text-slate-500 mt-0.5">{email}</div>
+                                </>
+                              ) : name ? (
+                                <div>{name}</div>
+                              ) : (
+                                <div>{email}</div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label htmlFor="environment-filter" className="text-sm text-slate-400">Environment:</label>
+                <select
+                  id="environment-filter"
+                  value={environmentFilter}
+                  onChange={(e) => handleFilterChange('environment', e.target.value)}
+                  className="bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-green-500/50"
+                >
+                  <option value="">All Environments</option>
+                  {filterOptions.environments.map((env) => (
+                    <option key={env.value} value={env.value}>
+                      {env.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label htmlFor="repo-filter" className="text-sm text-slate-400">Repository:</label>
+                <select
+                  id="repo-filter"
+                  value={repoFilter}
+                  onChange={(e) => handleFilterChange('repo', e.target.value)}
+                  className="bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-green-500/50"
+                >
+                  <option value="">All Repositories</option>
+                  {filterOptions.repositories.map((repo) => (
+                    <option key={repo.value} value={repo.value}>
+                      {repo.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={handleClearFilters}
+                  className="text-sm text-slate-400 hover:text-slate-300 transition-colors"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+          )}
 
           {error && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
