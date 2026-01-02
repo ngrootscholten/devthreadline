@@ -25,6 +25,15 @@ interface ContextFileHashInput {
 }
 
 /**
+ * Normalize line endings to LF for cross-platform consistency.
+ * Windows uses CRLF (\r\n), Unix uses LF (\n).
+ * We normalize to LF to ensure same content produces same hash regardless of platform.
+ */
+function normalizeLineEndings(content: string): string {
+  return content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+}
+
+/**
  * Generate a version-specific hash for a threadline definition.
  * This hash uniquely identifies an exact version of a threadline.
  * Same hash = exact same definition, can be reused.
@@ -34,7 +43,7 @@ export function generateVersionHash(input: VersionHashInput): string {
     threadlineId: input.threadlineId,
     filePath: input.filePath,
     patterns: input.patterns, // Not sorted - order from file is deterministic
-    content: input.content,
+    content: normalizeLineEndings(input.content), // Normalize line endings for cross-platform consistency
     version: input.version,
     repoName: input.repoName || '',
     account: input.account,
@@ -67,7 +76,7 @@ export function generateContextHash(input: ContextFileHashInput): string {
     account: input.account,
     repoName: input.repoName || '',
     filePath: input.filePath,
-    content: input.content,
+    content: normalizeLineEndings(input.content), // Normalize line endings for cross-platform consistency
   });
   return crypto.createHash('sha256').update(data).digest('hex');
 }

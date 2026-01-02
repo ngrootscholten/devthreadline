@@ -116,13 +116,17 @@ export async function validateThreadline(
 
     // Type assertions for required fields (already validated above)
     // filePath is relative to gitRoot for consistent identification across monorepo
+    // Normalize to forward slashes for cross-platform consistency (Windows uses backslashes)
+    const relativePath = path.relative(gitRoot, filePath);
+    const normalizedPath = relativePath.split(path.sep).join('/'); // Always use forward slashes
+    
     const threadline: Threadline = {
       id: frontmatter.id as string,
       version: frontmatter.version as string,
       patterns: frontmatter.patterns as string[],
       contextFiles: (Array.isArray(frontmatter.context_files) ? frontmatter.context_files.filter((f): f is string => typeof f === 'string') : []) as string[],
       content: body,
-      filePath: path.relative(gitRoot, filePath)
+      filePath: normalizedPath
     };
 
     return { valid: true, threadline };
