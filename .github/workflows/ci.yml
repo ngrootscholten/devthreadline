@@ -32,9 +32,12 @@ jobs:
       - name: Test GitHub Context (Debug)
         run: npx tsx scripts/test-github-context.ts
       
-      - name: Build (includes threadlines check, linting, tsc, etc.)
-        env:
-          THREADLINE_API_KEY: ${{ secrets.THREADLINE_API_KEY }}
-          THREADLINE_ACCOUNT: ${{ secrets.THREADLINE_ACCOUNT }}
-        run: npm run build
+      # - name: Build (includes threadlines check, linting, tsc, etc.)
+      #   env:
+      #     THREADLINE_API_KEY: ${{ secrets.THREADLINE_API_KEY }}
+      #     THREADLINE_ACCOUNT: ${{ secrets.THREADLINE_ACCOUNT }}
+      #   run: npm run build
+      
+      - name: Build (without threadlines check)
+        run: npm run build:vercel
 

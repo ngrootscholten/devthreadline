@@ -4,7 +4,8 @@ import { getPool } from '../../lib/db';
 
 /**
  * GET /api/checks
- * Returns the most recent checks for the authenticated user
+ * Returns checks for the authenticated user
+ * Supports pagination via query params: ?page=1&limit=20
  */
 export async function GET(req: NextRequest) {
   try {
@@ -17,9 +18,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Parse pagination params
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.max(1, Math.min(100, parseInt(searchParams.get('limit') || '20', 10))); // Cap at 100, default 20
+    const offset = (page - 1) * limit;
+
     const pool = getPool();
     
-    // Get the 20 most recent checks for this user
+    // Get total count and paginated results in one query
     // Use AT TIME ZONE 'UTC' to explicitly mark timestamp as UTC before formatting
     const result = await pool.query(
       `SELECT 
@@ -40,16 +47,20 @@ export async function GET(req: NextRequest) {
         TO_CHAR(c.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at_iso,
         COUNT(cr.id) FILTER (WHERE cr.status = 'compliant') as compliant_count,
         COUNT(cr.id) FILTER (WHERE cr.status = 'attention') as attention_count,
-        COUNT(cr.id) FILTER (WHERE cr.status = 'not_relevant') as not_relevant_count
+        COUNT(cr.id) FILTER (WHERE cr.status = 'not_relevant') as not_relevant_count,
+        COUNT(*) OVER() as total_count
       FROM checks c
       LEFT JOIN check_threadlines ct ON c.id = ct.check_id
       LEFT JOIN check_results cr ON ct.id = cr.check_threadline_id
       WHERE c.user_id = $1
       GROUP BY c.id
       ORDER BY c.created_at DESC
-      LIMIT 20`,
-      [session.user.id]
+      LIMIT $2 OFFSET $3`,
+      [session.user.id, limit, offset]
     );
+
+    const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
+    const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
       checks: result.rows.map(row => ({
@@ -75,7 +86,13 @@ export async function GET(req: NextRequest) {
           notRelevant: parseInt(row.not_relevant_count) || 0
         },
         createdAt: row.created_at_iso // Already formatted as ISO 8601 with 'Z' from PostgreSQL
-      }))
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      }
     });
   } catch (error: any) {
     console.error('Error fetching checks:', error);

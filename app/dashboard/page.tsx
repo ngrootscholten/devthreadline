@@ -1,9 +1,10 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Pagination } from "../components/pagination";
 
 interface Check {
   id: string;
@@ -37,28 +38,32 @@ interface CheckSummary {
   total: number;
 }
 
-export default function DashboardPage() {
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+function DashboardPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [checks, setChecks] = useState<Check[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summaries, setSummaries] = useState<Record<string, CheckSummary>>({});
   const [loadingSummaries, setLoadingSummaries] = useState<Set<string>>(new Set());
   const [summaryErrors, setSummaryErrors] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetchChecks();
-    } else if (status === "unauthenticated") {
-      router.push("/auth/signin");
-    }
-  }, [status]); // Only depend on status, not session object - YESS!
+  // Get current page from URL, default to 1
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
 
-  const fetchChecks = async () => {
+  const fetchChecks = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/checks", {
+      const response = await fetch(`/api/checks?page=${currentPage}&limit=20`, {
         credentials: "include",
       });
 
@@ -68,10 +73,25 @@ export default function DashboardPage() {
 
       const data = await response.json();
       setChecks(data.checks || []);
+      setPagination(data.pagination || null);
     } catch (err: any) {
       setError(err.message || "Failed to load checks");
     } finally {
       setLoading(false);
+    }
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      fetchChecks();
+    } else if (status === "unauthenticated") {
+      router.push("/auth/signin");
+    }
+  }, [status, fetchChecks, router]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && pagination && newPage <= pagination.totalPages) {
+      router.push(`/dashboard?page=${newPage}`);
     }
   };
 
@@ -244,8 +264,9 @@ export default function DashboardPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-800">
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Author</th>
@@ -425,10 +446,37 @@ export default function DashboardPage() {
                 </tbody>
               </table>
             </div>
+            {pagination && (
+              <Pagination
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                total={pagination.total}
+                limit={pagination.limit}
+                itemName="check"
+                onPageChange={handlePageChange}
+              />
+            )}
+            </>
           )}
         </div>
       </section>
     </main>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen">
+        <section className="max-w-7xl mx-auto px-6 py-12">
+          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
+            <p className="text-slate-400">Loading...</p>
+          </div>
+        </section>
+      </main>
+    }>
+      <DashboardPageContent />
+    </Suspense>
   );
 }
 
