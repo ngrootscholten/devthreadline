@@ -64,8 +64,8 @@ export default function ThreadlineDetailPage() {
   if (status === "loading" || loading) {
     return (
       <main className="min-h-screen">
-        <section className="max-w-7xl mx-auto px-6 py-24">
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
+        <section className="max-w-7xl mx-auto px-6 py-12">
+          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
             <p className="text-slate-400">Loading...</p>
           </div>
         </section>
@@ -80,8 +80,8 @@ export default function ThreadlineDetailPage() {
   if (error || !threadline) {
     return (
       <main className="min-h-screen">
-        <section className="max-w-7xl mx-auto px-6 py-24">
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
+        <section className="max-w-7xl mx-auto px-6 py-12">
+          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
             <div className="mb-6">
               {fromCheck ? (
                 <Link href={`/check/${fromCheck}`} className="text-green-400 hover:text-green-300 transition-colors">
@@ -156,7 +156,7 @@ export default function ThreadlineDetailPage() {
           )}
         </div>
 
-        <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
+        <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-4 text-white">{threadline.threadlineId}</h1>

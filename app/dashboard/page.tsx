@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -11,6 +11,7 @@ interface Check {
   branchName: string | null;
   environment: string | null;
   commitSha: string | null;
+  commitMessage: string | null;
   commitAuthorName: string | null;
   commitAuthorEmail: string | null;
   reviewContext: string | null;
@@ -29,12 +30,22 @@ interface Check {
   createdAt: string;
 }
 
+interface CheckSummary {
+  compliant: string[];
+  attention: string[];
+  notRelevant: string[];
+  total: number;
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [checks, setChecks] = useState<Check[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [summaries, setSummaries] = useState<Record<string, CheckSummary>>({});
+  const [loadingSummaries, setLoadingSummaries] = useState<Set<string>>(new Set());
+  const [summaryErrors, setSummaryErrors] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -64,11 +75,42 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchSummary = useCallback(async (checkId: string) => {
+    // Don't fetch if already loaded or currently loading
+    if (summaries[checkId] || loadingSummaries.has(checkId)) {
+      return;
+    }
+
+    setLoadingSummaries(prev => new Set(prev).add(checkId));
+
+    try {
+      const response = await fetch(`/api/checks/${checkId}/summary`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch summary");
+      }
+
+      const data = await response.json();
+      setSummaries(prev => ({ ...prev, [checkId]: data }));
+    } catch (err) {
+      console.error("Failed to fetch check summary:", err);
+      setSummaryErrors(prev => new Set(prev).add(checkId));
+    } finally {
+      setLoadingSummaries(prev => {
+        const next = new Set(prev);
+        next.delete(checkId);
+        return next;
+      });
+    }
+  }, [summaries, loadingSummaries]);
+
   if (status === "loading" || loading) {
     return (
       <main className="min-h-screen">
-        <section className="max-w-7xl mx-auto px-6 py-24">
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
+        <section className="max-w-7xl mx-auto px-6 py-12">
+          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
             <p className="text-slate-400">Loading...</p>
           </div>
         </section>
@@ -184,9 +226,9 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen">
-      <section className="max-w-7xl mx-auto px-6 py-24">
-        <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
-          <h1 className="text-4xl font-bold mb-6 text-white">Dashboard</h1>
+      <section className="max-w-7xl mx-auto px-6 py-12">
+        <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
+          <h1 className="text-4xl font-bold mb-3 text-white">Dashboard</h1>
 
           {error && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
@@ -206,11 +248,11 @@ export default function DashboardPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-800">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Date</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Repository</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Branch</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Author</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Environment</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Branch</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Repository</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Date</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Changes</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Results</th>
                   </tr>
@@ -223,18 +265,22 @@ export default function DashboardPage() {
                       onClick={() => router.push(`/check/${check.id}`)}
                     >
                       <td className="py-3 px-4 text-sm text-slate-300">
-                        {(() => {
-                          const { display, tooltip } = formatRelativeTime(check.createdAt);
-                          return (
-                            <Link 
-                              href={`/check/${check.id}`} 
-                              className="hover:text-white transition-colors"
-                              title={tooltip}
-                            >
-                              {display}
-                            </Link>
-                          );
-                        })()}
+                        {check.commitAuthorName ? (
+                          <div className="flex flex-col gap-1">
+                            <span>{check.commitAuthorName}</span>
+                            {check.commitAuthorEmail && (
+                              <span className="text-slate-500 text-xs">{check.commitAuthorEmail}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-500">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-sm">
+                        {getEnvironmentBadge(check.environment) || <span className="text-slate-500">—</span>}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-slate-300 font-mono">
+                        {check.branchName || <span className="text-slate-500">—</span>}
                       </td>
                       <td className="py-3 px-4 text-sm text-white font-mono">
                         {check.repoName ? (
@@ -248,52 +294,131 @@ export default function DashboardPage() {
                           <span className="text-slate-500">—</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-sm text-slate-300 font-mono">
-                        {check.branchName || <span className="text-slate-500">—</span>}
+                      <td className="py-3 px-4 text-sm text-slate-300">
+                        {(() => {
+                          const { display, tooltip } = formatRelativeTime(check.createdAt);
+                          return (
+                            <Link 
+                              href={`/check/${check.id}`} 
+                              className="hover:text-white transition-colors"
+                              title={tooltip}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {display}
+                            </Link>
+                          );
+                        })()}
                       </td>
                       <td className="py-3 px-4 text-sm text-slate-300">
-                        {check.commitAuthorName ? (
-                          <span 
-                            title={check.commitAuthorEmail || undefined}
-                            className="cursor-help"
-                          >
-                            {check.commitAuthorName}
-                            {check.commitAuthorEmail && (
-                              <span className="text-slate-500 text-xs ml-1">({check.commitAuthorEmail})</span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-slate-500">—</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-sm">
-                        {getEnvironmentBadge(check.environment) || <span className="text-slate-500">—</span>}
+                        {(() => {
+                          const tooltipParts: string[] = [];
+                          tooltipParts.push(`${check.filesChangedCount} file${check.filesChangedCount !== 1 ? 's' : ''} changed`);
+                          if (check.commitMessage) {
+                            tooltipParts.push('');
+                            tooltipParts.push(`Commit: ${check.commitMessage}`);
+                          } else {
+                            tooltipParts.push('');
+                            tooltipParts.push('(No commit message - local changes)');
+                          }
+                          return (
+                            <span 
+                              title={tooltipParts.join('\n')}
+                              className="cursor-help"
+                            >
+                              {formatDiffStats(check.diffStats)}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="py-3 px-4 text-sm text-slate-300">
-                        {formatDiffStats(check.diffStats)}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-slate-300">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {check.results.compliant > 0 && (
-                              <span className="text-green-400">{check.results.compliant} ✓</span>
-                            )}
-                            {check.results.attention > 0 && (
-                              <span className="text-yellow-400">{check.results.attention} ⚠</span>
-                            )}
-                            {check.results.notRelevant > 0 && (
-                              <span className="text-slate-500">{check.results.notRelevant} —</span>
-                            )}
-                            {check.results.compliant === 0 && 
-                             check.results.attention === 0 && 
-                             check.results.notRelevant === 0 && (
-                              <span className="text-slate-500">—</span>
-                            )}
-                          </div>
-                          <span className="text-slate-500 text-xs">
-                            {check.threadlinesCount} threadline{check.threadlinesCount !== 1 ? 's' : ''}
-                          </span>
-                        </div>
+                        {(() => {
+                          const summary = summaries[check.id];
+                          const hasError = summaryErrors.has(check.id);
+                          const buildTooltip = (): string => {
+                            if (hasError) {
+                              return 'Error retrieving check summary';
+                            }
+
+                            if (!summary) {
+                              // Summary not loaded yet - show basic counts
+                              const parts: string[] = [];
+                              parts.push('Results Breakdown:');
+                              parts.push('');
+                              if (check.results.compliant > 0) {
+                                parts.push(`✓ ${check.results.compliant} compliant`);
+                              }
+                              if (check.results.attention > 0) {
+                                parts.push(`⚠ ${check.results.attention} attention`);
+                              }
+                              if (check.results.notRelevant > 0) {
+                                parts.push(`— ${check.results.notRelevant} not relevant`);
+                              }
+                              parts.push('');
+                              parts.push(`Total: ${check.threadlinesCount} threadline${check.threadlinesCount !== 1 ? 's' : ''}`);
+                              return parts.join('\n');
+                            }
+
+                            // Full tooltip with threadline IDs
+                            const parts: string[] = [];
+                            parts.push('Results Breakdown:');
+                            parts.push('');
+
+                            if (summary.compliant.length > 0) {
+                              parts.push(`✓ ${summary.compliant.length} compliant:`);
+                              summary.compliant.forEach(id => {
+                                parts.push(`  • ${id}`);
+                              });
+                              parts.push('');
+                            }
+
+                            if (summary.attention.length > 0) {
+                              parts.push(`⚠ ${summary.attention.length} attention:`);
+                              summary.attention.forEach(id => {
+                                parts.push(`  • ${id}`);
+                              });
+                              parts.push('');
+                            }
+
+                            if (summary.notRelevant.length > 0) {
+                              parts.push(`— ${summary.notRelevant.length} not relevant:`);
+                              summary.notRelevant.forEach(id => {
+                                parts.push(`  • ${id}`);
+                              });
+                              parts.push('');
+                            }
+
+                            parts.push(`Total: ${summary.total} threadline${summary.total !== 1 ? 's' : ''}`);
+                            return parts.join('\n');
+                          };
+
+                          return (
+                            <div 
+                              className="flex flex-col gap-1 cursor-help"
+                              title={buildTooltip()}
+                              onMouseEnter={() => fetchSummary(check.id)}
+                            >
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {check.results.compliant > 0 && (
+                                  <span className="text-green-400">{check.results.compliant} ✓</span>
+                                )}
+                                {check.results.attention > 0 && (
+                                  <span className="text-yellow-400">{check.results.attention} ⚠</span>
+                                )}
+                                {check.results.notRelevant > 0 && (
+                                  <span className="text-slate-500">{check.results.notRelevant} —</span>
+                                )}
+                                {check.results.compliant === 0 && 
+                                 check.results.attention === 0 && 
+                                 check.results.notRelevant === 0 && (
+                                  <span className="text-slate-500">—</span>
+                                )}
+                              </div>
+                              <span className="text-slate-500 text-xs">
+                                {check.threadlinesCount} threadline{check.threadlinesCount !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
                     </tr>
                   ))}

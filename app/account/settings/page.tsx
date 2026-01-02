@@ -114,8 +114,8 @@ export default function SettingsPage() {
   if (status === "loading") {
     return (
       <main className="min-h-screen">
-        <section className="max-w-4xl mx-auto px-6 py-24">
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
+        <section className="max-w-4xl mx-auto px-6 py-12">
+          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
             <p className="text-slate-400">Loading...</p>
           </div>
         </section>
@@ -130,9 +130,9 @@ export default function SettingsPage() {
 
   return (
     <main className="min-h-screen">
-      <section className="max-w-4xl mx-auto px-6 py-24">
-        <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
-          <h1 className="text-4xl font-bold mb-6 text-white">Settings</h1>
+      <section className="max-w-4xl mx-auto px-6 py-12">
+        <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
+          <h1 className="text-4xl font-bold mb-3 text-white">Settings</h1>
           
           <div className="space-y-6">
             {/* Account Identifier */}

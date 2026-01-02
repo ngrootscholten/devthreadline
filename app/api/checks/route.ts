@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
     const pool = getPool();
     
-    // Get the 40 most recent checks for this user
+    // Get the 20 most recent checks for this user
     // Use AT TIME ZONE 'UTC' to explicitly mark timestamp as UTC before formatting
     const result = await pool.query(
       `SELECT 
@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
         c.branch_name,
         c.environment,
         c.commit_sha,
+        c.commit_message,
         c.commit_author_name,
         c.commit_author_email,
         c.review_context,
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest) {
       WHERE c.user_id = $1
       GROUP BY c.id
       ORDER BY c.created_at DESC
-      LIMIT 40`,
+      LIMIT 20`,
       [session.user.id]
     );
 
@@ -57,6 +58,7 @@ export async function GET(req: NextRequest) {
         branchName: row.branch_name,
         environment: row.environment,
         commitSha: row.commit_sha,
+        commitMessage: row.commit_message,
         commitAuthorName: row.commit_author_name,
         commitAuthorEmail: row.commit_author_email,
         reviewContext: row.review_context,
