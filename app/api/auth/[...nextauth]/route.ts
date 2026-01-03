@@ -85,11 +85,12 @@ function getNextAuthConfig(): NextAuthConfig {
   },
   callbacks: {
     async signIn({ user }: { user: User }) {
-      // Only allow sign in if email is verified
-      if (user.emailVerified) {
-        return true
-      }
-      return false
+      // Standard NextAuth pattern for email/magic link providers:
+      // - Allow magic link requests (emailVerified is null for new users)
+      // - Allow verified users (emailVerified is a timestamp)
+      // - Email verification happens when token is consumed (in /auth/confirm)
+      // This allows new sign-ups to receive magic links, then verification is checked on token consumption
+      return true
     },
     async jwt({ token, user }: { token: any; user?: User }) {
       if (user) {
@@ -113,6 +114,45 @@ function getNextAuthConfig(): NextAuthConfig {
         
         if (userResult.rows.length > 0) {
           const user = userResult.rows[0]
+          
+          // Create account if user doesn't have one yet (first-time sign-in after email verification)
+          // Only create account for verified users - skip unverified users to avoid unnecessary DB operations
+          if (!user.account_id && user.email && user.emailVerified) {
+            try {
+              // Try to create account, or get existing one if it already exists (race condition handling)
+              // Use INSERT ... ON CONFLICT DO NOTHING to handle concurrent requests
+              await pool.query(
+                `INSERT INTO threadline_accounts (name, identifier)
+                 VALUES ($1, $2)
+                 ON CONFLICT (identifier) DO NOTHING`,
+                [user.name || user.email, user.email]
+              )
+              
+              // Fetch the account ID (either newly created or existing)
+              const accountResult = await pool.query(
+                `SELECT id FROM threadline_accounts WHERE identifier = $1`,
+                [user.email]
+              )
+              
+              if (accountResult.rows.length > 0) {
+                const accountId = accountResult.rows[0].id
+                
+                // Link user to account
+                await pool.query(
+                  `UPDATE users SET account_id = $1 WHERE id = $2`,
+                  [accountId, user.id]
+                )
+                
+                // Update user object for this session
+                user.account_id = accountId
+              }
+            } catch (error) {
+              // If account creation fails, log but don't break the session
+              // User can still use the app, they just won't have an account yet
+              console.error('Failed to create account for user:', error)
+            }
+          }
+          
           if (session.user) {
             session.user.id = user.id
             session.user.email = user.email
