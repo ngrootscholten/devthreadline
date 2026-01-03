@@ -190,30 +190,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Authentication: Check database first (to get userId for logged-in users)
-    // Fall back to environment variables only if database lookup fails
+    // Authentication: Account-level authentication
+    // Look up account by identifier (email) and verify API key
     const serverApiKey = process.env.THREADLINE_API_KEY;
     const serverAccount = process.env.THREADLINE_ACCOUNT;
     
     let isAuthenticated = false;
     let userId: string | undefined = undefined;
+    let accountId: string | undefined = undefined;
     
-    // Try database first - this ensures logged-in users get their userId
+    // Try database first - account-level authentication
     try {
       const pool = getPool();
-      const result = await pool.query(
-        `SELECT id, api_key_hash FROM users WHERE email = $1 AND api_key_hash IS NOT NULL`,
+      const accountResult = await pool.query(
+        `SELECT id, api_key_hash FROM threadline_accounts WHERE identifier = $1`,
         [request.account]
       );
       
-      if (result.rows.length > 0) {
-        const storedHash = result.rows[0].api_key_hash;
+      if (accountResult.rows.length > 0) {
+        const storedHash = accountResult.rows[0].api_key_hash;
         const providedHash = hashApiKey(request.apiKey);
         
         if (providedHash === storedHash) {
           isAuthenticated = true;
-          userId = result.rows[0].id;
-          console.log('   ✓ Authenticated via database (user API key)');
+          accountId = accountResult.rows[0].id;
+          
+          // Find user for userId tracking (optional - get first user for this account)
+          const userResult = await pool.query(
+            `SELECT id FROM users WHERE account_id = $1 LIMIT 1`,
+            [accountId]
+          );
+          
+          if (userResult.rows.length > 0) {
+            userId = userResult.rows[0].id;
+          }
+          
+          console.log('   ✓ Authenticated via database (account API key)');
         }
       }
     } catch (dbError: any) {
@@ -224,6 +236,19 @@ export async function POST(req: NextRequest) {
     // Fall back to environment variables (backward compatibility for legacy setups)
     if (!isAuthenticated && serverApiKey && serverAccount) {
       if (request.apiKey === serverApiKey && request.account === serverAccount) {
+        // For env var auth, try to find account by identifier
+        try {
+          const pool = getPool();
+          const accountResult = await pool.query(
+            `SELECT id FROM threadline_accounts WHERE identifier = $1`,
+            [request.account]
+          );
+          if (accountResult.rows.length > 0) {
+            accountId = accountResult.rows[0].id;
+          }
+        } catch (err) {
+          // Ignore - accountId remains undefined
+        }
         isAuthenticated = true;
         console.log('   ✓ Authenticated via environment variables (backward compatibility)');
         // Note: userId remains undefined for legacy env var auth
@@ -262,6 +287,9 @@ export async function POST(req: NextRequest) {
     // Store check in audit database (non-blocking - don't fail request if this fails)
     let checkId: string | null = null;
     try {
+      if (!accountId) {
+        throw new Error('Account ID is required but not available');
+      }
       checkId = await storeCheck({
         request,
         result,
@@ -271,7 +299,8 @@ export async function POST(req: NextRequest) {
         commitSha: request.commitSha,
         commitAuthorName: request.commitAuthorName,
         commitAuthorEmail: request.commitAuthorEmail,
-        userId
+        userId,
+        accountId
       });
     } catch (auditError: any) {
       console.error('⚠️  Failed to store check in audit database (non-fatal):', auditError);

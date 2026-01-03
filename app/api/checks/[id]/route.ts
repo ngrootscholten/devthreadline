@@ -23,9 +23,18 @@ export async function GET(
     const { id: checkId } = await params;
     const pool = getPool();
     
+    // Get account_id from session (set by NextAuth session callback)
+    if (!session.user.accountId) {
+      return NextResponse.json(
+        { error: 'User account not found' },
+        { status: 404 }
+      );
+    }
+    
+    const accountId = session.user.accountId;
+    
     // Get check metadata
-    // Allow access if user_id matches OR if account matches (for legacy env var auth)
-    // Use AT TIME ZONE 'UTC' to explicitly mark timestamp as UTC before formatting
+    // Allow access if user_id matches OR if account_id matches
     const checkResult = await pool.query(
       `SELECT 
         c.id,
@@ -43,11 +52,10 @@ export async function GET(
         c.context_files_count,
         c.context_files_total_lines,
         c.threadlines_count,
-        TO_CHAR(c.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at_iso,
-        c.account
+        c.created_at
       FROM checks c
-      WHERE c.id = $1 AND (c.user_id = $2 OR c.account = $3)`,
-      [checkId, session.user.id, session.user.email]
+      WHERE c.id = $1 AND (c.user_id = $2 OR c.account_id = $3)`,
+      [checkId, session.user.id, accountId]
     );
 
     if (checkResult.rows.length === 0) {
@@ -112,7 +120,7 @@ export async function GET(
         contextFilesCount: check.context_files_count,
         contextFilesTotalLines: check.context_files_total_lines,
         threadlinesCount: check.threadlines_count,
-        createdAt: check.created_at_iso,
+        createdAt: check.created_at.toISOString(),
         summary: {
           total: threadlines.length,
           passed,

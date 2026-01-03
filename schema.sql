@@ -37,8 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
   
       -- Our custom fields (snake_case):
       company TEXT, -- Custom field for user's company
-      api_key_hash TEXT, -- Hashed API key for CLI authentication (SHA256 hash)
-      api_key_created_at TIMESTAMPTZ, -- When the API key was generated
+      account_id TEXT REFERENCES threadline_accounts(id) ON DELETE SET NULL, -- FK to threadline_accounts
       
       -- Timestamps (snake_case - our convention):
       created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -121,6 +120,25 @@ CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts("userId"); -- Note: 
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions("userId"); -- Note: camelCase column name
 CREATE INDEX IF NOT EXISTS idx_sessions_session_token ON sessions("sessionToken"); -- Note: camelCase column name
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_account_id ON users(account_id);
+
+-- ============================================================================
+-- Threadline Accounts Table
+-- ============================================================================
+-- Represents a team/organization/customer account
+-- Owns the API key and serves as aggregation key for team collaboration
+CREATE TABLE IF NOT EXISTS threadline_accounts (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  name TEXT NOT NULL,
+  identifier TEXT UNIQUE NOT NULL, -- THREADLINE_ACCOUNT value (user's email)
+  api_key_hash TEXT NOT NULL, -- Hashed API key (SHA256)
+  api_key_created_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_threadline_accounts_identifier ON threadline_accounts(identifier);
+CREATE INDEX IF NOT EXISTS idx_threadline_accounts_api_key_hash ON threadline_accounts(api_key_hash);
 
 -- ============================================================================
 -- Audit and Analysis Tables for Threadline Checks
@@ -129,7 +147,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE TABLE IF NOT EXISTS checks (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
-  account TEXT NOT NULL,
+  account_id TEXT NOT NULL REFERENCES threadline_accounts(id) ON DELETE CASCADE,
   repo_name TEXT,
   branch_name TEXT,
   commit_sha TEXT,
@@ -224,7 +242,8 @@ CREATE TABLE IF NOT EXISTS check_metrics (
 
 -- Indexes for audit tables
 CREATE INDEX IF NOT EXISTS idx_checks_user_id ON checks(user_id);
-CREATE INDEX IF NOT EXISTS idx_checks_account ON checks(account);
+CREATE INDEX IF NOT EXISTS idx_checks_account_id ON checks(account_id);
+CREATE INDEX IF NOT EXISTS idx_checks_account_id_created_at ON checks(account_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_checks_repo_name ON checks(repo_name);
 CREATE INDEX IF NOT EXISTS idx_checks_branch_name ON checks(branch_name);
 CREATE INDEX IF NOT EXISTS idx_checks_created_at ON checks(created_at DESC);
@@ -269,4 +288,5 @@ ALTER TABLE check_threadlines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE check_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE check_diffs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE check_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE threadline_accounts ENABLE ROW LEVEL SECURITY;
 

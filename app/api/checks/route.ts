@@ -31,9 +31,19 @@ export async function GET(req: NextRequest) {
 
     const pool = getPool();
     
-    // Build WHERE conditions for filters
-    const whereConditions: string[] = ['c.user_id = $1'];
-    const queryParams: any[] = [session.user.id];
+    // Get account_id from session (set by NextAuth session callback)
+    if (!session.user.accountId) {
+      return NextResponse.json(
+        { error: 'User account not found' },
+        { status: 404 }
+      );
+    }
+    
+    const accountId = session.user.accountId;
+    
+    // Build WHERE conditions for filters - filter by account_id (team-wide visibility)
+    const whereConditions: string[] = ['c.account_id = $1'];
+    const queryParams: any[] = [accountId];
     let paramIndex = 2;
 
     if (authorFilter) {
@@ -69,7 +79,6 @@ export async function GET(req: NextRequest) {
     const whereClause = whereConditions.join(' AND ');
 
     // Get total count and paginated results in one query
-    // Use AT TIME ZONE 'UTC' to explicitly mark timestamp as UTC before formatting
     const result = await pool.query(
       `SELECT 
         c.id,
@@ -86,7 +95,7 @@ export async function GET(req: NextRequest) {
         c.diff_total_lines,
         c.files_changed_count,
         c.threadlines_count,
-        TO_CHAR(c.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at_iso,
+        c.created_at,
         COUNT(cr.id) FILTER (WHERE cr.status = 'compliant') as compliant_count,
         COUNT(cr.id) FILTER (WHERE cr.status = 'attention') as attention_count,
         COUNT(cr.id) FILTER (WHERE cr.status = 'not_relevant') as not_relevant_count,
@@ -127,7 +136,7 @@ export async function GET(req: NextRequest) {
           attention: parseInt(row.attention_count) || 0,
           notRelevant: parseInt(row.not_relevant_count) || 0
         },
-        createdAt: row.created_at_iso // Already formatted as ISO 8601 with 'Z' from PostgreSQL
+        createdAt: row.created_at.toISOString()
       })),
       pagination: {
         page,

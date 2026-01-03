@@ -20,16 +20,26 @@ export async function GET(req: NextRequest) {
 
     const pool = getPool();
     
-    // Get distinct authors (name + email)
+    // Get account_id from session (set by NextAuth session callback)
+    if (!session.user.accountId) {
+      return NextResponse.json(
+        { error: 'User account not found' },
+        { status: 404 }
+      );
+    }
+    
+    const accountId = session.user.accountId;
+    
+    // Get distinct authors (name + email) - filter by account_id (team-wide)
     const authorsResult = await pool.query(
       `SELECT DISTINCT 
         commit_author_name,
         commit_author_email
       FROM checks
-      WHERE user_id = $1 
+      WHERE account_id = $1 
         AND (commit_author_name IS NOT NULL OR commit_author_email IS NOT NULL)
       ORDER BY commit_author_name NULLS LAST, commit_author_email NULLS LAST`,
-      [session.user.id]
+      [accountId]
     );
 
     // Format authors as "Name <email>" or just email if no name
@@ -48,13 +58,13 @@ export async function GET(req: NextRequest) {
       })
       .filter((item): item is { value: string; label: string } => item !== null);
 
-    // Get distinct environments
+    // Get distinct environments - filter by account_id (team-wide)
     const environmentsResult = await pool.query(
       `SELECT DISTINCT environment
       FROM checks
-      WHERE user_id = $1
+      WHERE account_id = $1
       ORDER BY environment NULLS LAST`,
-      [session.user.id]
+      [accountId]
     );
 
     const environments = environmentsResult.rows
@@ -62,14 +72,14 @@ export async function GET(req: NextRequest) {
       .filter((env): env is string => env !== null)
       .map(env => ({ value: env, label: env }));
 
-    // Get distinct repositories
+    // Get distinct repositories - filter by account_id (team-wide)
     const reposResult = await pool.query(
       `SELECT DISTINCT repo_name
       FROM checks
-      WHERE user_id = $1
+      WHERE account_id = $1
         AND repo_name IS NOT NULL
       ORDER BY repo_name`,
-      [session.user.id]
+      [accountId]
     );
 
     // Format repository names for display (same logic as dashboard)

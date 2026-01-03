@@ -23,7 +23,32 @@ export async function GET(
     const { id } = await params;
     const pool = getPool();
     
-    // Get threadline definition (filtered by account)
+    // Get account_id from session (set by NextAuth session callback)
+    if (!session.user.accountId) {
+      return NextResponse.json(
+        { error: 'User account not found' },
+        { status: 404 }
+      );
+    }
+    
+    const accountId = session.user.accountId;
+    
+    // Get account identifier for threadline_definitions (still uses account TEXT field)
+    const accountResult = await pool.query(
+      `SELECT identifier FROM threadline_accounts WHERE id = $1`,
+      [accountId]
+    );
+    
+    if (accountResult.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Account not found' },
+        { status: 404 }
+      );
+    }
+    
+    const accountIdentifier = accountResult.rows[0].identifier;
+    
+    // Get threadline definition (filtered by account identifier)
     const definitionResult = await pool.query(
       `SELECT 
         td.id,
@@ -33,10 +58,10 @@ export async function GET(
         td.threadline_patterns,
         td.threadline_content,
         td.repo_name,
-        TO_CHAR(td.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at_iso
+        td.created_at
       FROM threadline_definitions td
       WHERE td.id = $1 AND td.account = $2`,
-      [id, session.user.email]
+      [id, accountIdentifier]
     );
 
     if (definitionResult.rows.length === 0) {
@@ -57,7 +82,7 @@ export async function GET(
         patterns: definition.threadline_patterns,
         content: definition.threadline_content,
         repoName: definition.repo_name,
-        createdAt: definition.created_at_iso
+        createdAt: definition.created_at.toISOString()
       }
     });
   } catch (error: unknown) {

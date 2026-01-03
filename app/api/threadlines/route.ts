@@ -27,22 +27,46 @@ export async function GET(req: NextRequest) {
 
     const pool = getPool();
     
+    // Get account_id from session (set by NextAuth session callback)
+    if (!session.user.accountId) {
+      return NextResponse.json(
+        { error: 'User account not found' },
+        { status: 404 }
+      );
+    }
+    
+    const accountId = session.user.accountId;
+    
+    // Get account identifier for threadline_definitions (still uses account TEXT field)
+    const accountResult = await pool.query(
+      `SELECT identifier FROM threadline_accounts WHERE id = $1`,
+      [accountId]
+    );
+    
+    if (accountResult.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Account not found' },
+        { status: 404 }
+      );
+    }
+    
+    const accountIdentifier = accountResult.rows[0].identifier;
+    
     // Get total count and paginated results in one query
-    // Filter by account (email is the account identifier)
-    // Use AT TIME ZONE 'UTC' to explicitly mark timestamp as UTC before formatting
+    // Filter by account identifier (threadline_definitions still uses account TEXT field)
     const result = await pool.query(
       `SELECT 
         td.id,
         td.threadline_id,
         td.threadline_file_path,
         td.repo_name,
-        TO_CHAR(td.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at_iso,
+        td.created_at,
         COUNT(*) OVER() as total_count
       FROM threadline_definitions td
       WHERE td.account = $1
       ORDER BY td.created_at DESC
       LIMIT $2 OFFSET $3`,
-      [session.user.email, limit, offset]
+      [accountIdentifier, limit, offset]
     );
 
     const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
@@ -54,7 +78,7 @@ export async function GET(req: NextRequest) {
         threadlineId: row.threadline_id,
         filePath: row.threadline_file_path,
         repoName: row.repo_name,
-        createdAt: row.created_at_iso // Already formatted as ISO 8601 with 'Z' from PostgreSQL
+        createdAt: row.created_at.toISOString()
       })),
       pagination: {
         page,

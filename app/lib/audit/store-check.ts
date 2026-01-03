@@ -15,6 +15,7 @@ interface StoreCheckParams {
   commitAuthorName?: string;
   commitAuthorEmail?: string;
   userId?: string; // Optional - may not be available for legacy env var auth
+  accountId: string; // Required - account_id from threadline_accounts
 }
 
 /**
@@ -30,7 +31,8 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
     commitSha,
     commitAuthorName,
     commitAuthorEmail,
-    userId
+    userId,
+    accountId
   } = params;
 
   const pool = getPool();
@@ -43,7 +45,7 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
     const checkResult = await pool.query(
       `INSERT INTO checks (
         user_id,
-        account,
+        account_id,
         repo_name,
         branch_name,
         commit_sha,
@@ -66,7 +68,7 @@ export async function storeCheck(params: StoreCheckParams): Promise<string> {
       RETURNING id`,
       [
         userId || null,
-        request.account,
+        accountId,
         request.repoName || null,
         request.branchName || null,
         commitSha || null,

@@ -102,12 +102,12 @@ function getNextAuthConfig(): NextAuthConfig {
       return token
     },
     async session({ session, token }) {
-      // Fetch fresh user data from database to ensure we have latest name/company
+      // Fetch fresh user data from database to ensure we have latest name/company/account_id
       // If database query fails, let error propagate - NextAuth will handle it appropriately
       if (token.id) {
         const pool = getPool()
         const userResult = await pool.query(
-          `SELECT id, email, name, company, "emailVerified" FROM users WHERE id = $1`,
+          `SELECT id, email, name, company, "emailVerified", account_id FROM users WHERE id = $1`,
           [token.id]
         )
         
@@ -119,6 +119,7 @@ function getNextAuthConfig(): NextAuthConfig {
             session.user.name = user.name
             ;(session.user as any).company = user.company
             session.user.emailVerified = user.emailVerified
+            ;(session.user as any).accountId = user.account_id || null
           }
         }
       }

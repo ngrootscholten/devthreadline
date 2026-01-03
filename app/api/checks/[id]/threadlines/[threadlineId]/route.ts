@@ -24,11 +24,21 @@ export async function GET(
     const { id: checkId, threadlineId } = await params;
     const pool = getPool();
     
+    // Get account_id from session (set by NextAuth session callback)
+    if (!session.user.accountId) {
+      return NextResponse.json(
+        { error: 'User account not found' },
+        { status: 404 }
+      );
+    }
+    
+    const accountId = session.user.accountId;
+    
     // Verify check access first
     const checkAccess = await pool.query(
       `SELECT id FROM checks 
-       WHERE id = $1 AND (user_id = $2 OR account = $3)`,
-      [checkId, session.user.id, session.user.email]
+       WHERE id = $1 AND (user_id = $2 OR account_id = $3)`,
+      [checkId, session.user.id, accountId]
     );
 
     if (checkAccess.rows.length === 0) {
