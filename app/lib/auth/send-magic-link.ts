@@ -39,7 +39,7 @@ export async function sendMagicLink(email: string, accountId: string): Promise<v
   // Generate random token (32 bytes = 64 hex characters)
   const tokenString = randomBytes(32).toString("hex")
 
-  // Hash token with NEXTAUTH_SECRET (CRITICAL: Must match confirm-signin hashing)
+  // Hash token with NEXTAUTH_SECRET (same method NextAuth uses internally)
   const hashedToken = createHash("sha256")
     .update(`${tokenString}${process.env.NEXTAUTH_SECRET}`)
     .digest("hex")
@@ -67,10 +67,9 @@ export async function sendMagicLink(email: string, accountId: string): Promise<v
     token: hashedToken, // Store the HASHED version
   })
 
-  // Generate magic link URL (using INVITE confirmation page - separate from normal sign-in)
-  // Use UNHASHED token in URL
-  // This goes to /auth/confirm-invite which uses our custom /api/auth/confirm-signin endpoint
-  const confirmationUrl = `${process.env.NEXTAUTH_URL}/auth/confirm-invite?token=${encodeURIComponent(tokenString)}&email=${encodeURIComponent(email)}`
+  // Generate magic link URL (using unified confirmation page)
+  // Use UNHASHED token in URL - NextAuth's callback will hash it for validation
+  const confirmationUrl = `${process.env.NEXTAUTH_URL}/auth/confirm?token=${encodeURIComponent(tokenString)}&email=${encodeURIComponent(email)}`
 
   // Send email via Postmark
   const postmarkClient = new ServerClient(process.env.POSTMARK_API_TOKEN)

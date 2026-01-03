@@ -63,10 +63,10 @@ function getNextAuthConfig(): NextAuthConfig {
               <p><a href="${confirmationUrl}" style="display: inline-block; padding: 12px 24px; background-color: #22c55e; color: #000; text-decoration: none; border-radius: 8px; font-weight: 600;">Sign in to Threadline</a></p>
               <p>Or copy and paste this link into your browser:</p>
               <p style="word-break: break-all; color: #666; font-size: 14px;">${confirmationUrl}</p>
-              <p style="color: #666; font-size: 14px; margin-top: 24px;">This link will expire in 24 hours.</p>
+              <p style="color: #666; font-size: 14px; margin-top: 24px;">This link will expire in 48 hours.</p>
               <p style="color: #666; font-size: 14px;">If you didn't request this email, you can safely ignore it.</p>
             `,
-            TextBody: `Sign in to Threadline\n\nClick this link to sign in:\n${confirmationUrl}\n\nThis link will expire in 24 hours.`,
+            TextBody: `Sign in to Threadline\n\nClick this link to sign in:\n${confirmationUrl}\n\nThis link will expire in 48 hours.`,
             MessageStream: "outbound",
           })
         } catch (error) {
@@ -187,7 +187,7 @@ function getNextAuthConfig(): NextAuthConfig {
 const nextAuthConfig = getNextAuthConfig()
 export const { handlers, signIn, signOut, auth } = NextAuth(nextAuthConfig)
 
-// Export authOptions for use in other API routes (e.g., confirm-signin)
+// Export authOptions for potential use in other API routes
 export const authOptions = nextAuthConfig
 
 export const { GET, POST } = handlers
