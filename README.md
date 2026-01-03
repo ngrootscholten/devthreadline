@@ -31,7 +31,7 @@ Threadline helps teams maintain consistent code quality by:
 ## How It Works
 
 1. Define your threadlines as markdown files in `/threadlines`
-2. Run `npx threadline check` when reviewing changes
+2. Run `npx threadlines check` when reviewing changes
 3. Threadline validates experts, collects git diffs, and runs parallel AI reviews
 4. Get focused feedback—only experts that need attention are shown
 
@@ -41,9 +41,9 @@ Threadline helps teams maintain consistent code quality by:
 
 ## Learn More
 
-- [Vision](./docs/VISION.md) - The problem we solve
-- [How It Works](./docs/HOW_IT_WORKS.md) - Technical overview
-- [Technical Plan](./docs/TECHNICAL_PLAN.md) - Implementation details
+- [Account Entity Design](./docs/account-entity-design.md) - Database design for accounts and users
+- [Fix Detection Design](./docs/fix-detection-design.md) - Violation fix detection system design
+- [CI Environment Detection](./docs/ci-environment-detection.md) - How we detect CI/CD environments
 
 ## License
 

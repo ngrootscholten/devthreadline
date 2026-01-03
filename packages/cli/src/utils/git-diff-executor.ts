@@ -7,7 +7,6 @@
 
 import { ReviewContext } from './context';
 import { Environment } from './environment';
-import { getBranchDiff, getCommitDiff, getPRMRDiff } from '../git/diff';
 import { getVercelDiff } from '../git/vercel-diff';
 import { getGitHubDiff } from '../git/github-diff';
 import { getLocalDiff } from '../git/local-diff';
@@ -55,47 +54,6 @@ export async function getDiffForEnvironment(
     default:
       const _exhaustive: never = environment;
       throw new Error(`Unknown environment: ${_exhaustive}`);
-  }
-}
-
-/**
- * Legacy GitLab-specific diff function (deprecated).
- * 
- * This function is kept for backward compatibility but should not be used.
- * GitLab now uses getDiffForEnvironment() which routes to getGitLabDiff().
- * 
- * @deprecated Use getDiffForEnvironment('gitlab', repoRoot) instead
- */
-export async function getDiffForContext(
-  context: ReviewContext,
-  repoRoot: string,
-  environment: Environment
-): Promise<GitDiffResult> {
-  // This should only be called for GitLab legacy code paths
-  if (environment !== 'gitlab') {
-    throw new Error(`getDiffForContext() is deprecated. Use getDiffForEnvironment('${environment}', repoRoot) instead.`);
-  }
-
-  switch (context.type) {
-    case 'pr':
-      return await getPRMRDiff(repoRoot, context.sourceBranch, context.targetBranch);
-    
-    case 'mr':
-      return await getPRMRDiff(repoRoot, context.sourceBranch, context.targetBranch);
-    
-    case 'branch':
-      return await getBranchDiff(repoRoot, context.branchName);
-    
-    case 'commit':
-      return await getCommitDiff(repoRoot, context.commitSha);
-    
-    case 'local':
-      throw new Error('Local context should use getDiffForEnvironment(), not getDiffForContext()');
-    
-    default:
-      // TypeScript exhaustiveness check - should never reach here
-      const _exhaustive: never = context;
-      throw new Error(`Unknown context type: ${_exhaustive}`);
   }
 }
 

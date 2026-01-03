@@ -8,7 +8,7 @@ import { getGitHubContext } from '../git/github';
 import { getGitLabContext } from '../git/gitlab';
 import { getVercelContext } from '../git/vercel';
 import { getLocalContext } from '../git/local';
-import { getDiffForContext } from '../utils/git-diff-executor';
+import { getBranchDiff, getCommitDiff } from '../git/diff';
 import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
@@ -138,7 +138,7 @@ export async function checkCommand(options: {
     } else if (options.branch) {
       console.log(chalk.gray(`📝 Collecting git changes for branch: ${options.branch}...`));
       context = { type: 'branch', branchName: options.branch };
-      gitDiff = await getDiffForContext(context, repoRoot, environment);
+      gitDiff = await getBranchDiff(repoRoot, options.branch);
       // Get repo/branch using environment-specific approach
       if (environment === 'github') {
         const gitContext = await getGitHubContext(repoRoot);
@@ -186,7 +186,7 @@ export async function checkCommand(options: {
     } else if (options.commit) {
       console.log(chalk.gray(`📝 Collecting git changes for commit: ${options.commit}...`));
       context = { type: 'commit', commitSha: options.commit };
-      gitDiff = await getDiffForContext(context, repoRoot, environment);
+      gitDiff = await getCommitDiff(repoRoot, options.commit);
       // Get repo/branch using environment-specific approach
       if (environment === 'github') {
         const gitContext = await getGitHubContext(repoRoot);

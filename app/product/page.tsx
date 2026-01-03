@@ -59,10 +59,10 @@ All feature flags must:
               <div className="flex-1">
                 <h3 className="text-3xl font-bold mb-4">Run the Check</h3>
                 <p className="text-lg text-slate-300 mb-6">
-                  The <code className="bg-slate-800 px-2 py-1 rounded text-sm">npx threadline check</code> command runs in a few seconds from your local CLI and CI pipeline, validating your changes against your team's coding standards.
+                  The <code className="bg-slate-800 px-2 py-1 rounded text-sm">npx threadlines check</code> command runs in a few seconds from your local CLI and CI pipeline, validating your changes against your team's coding standards.
                 </p>
                 <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
-                  <pre className="text-green-400"><code>{`npx threadline check`}</code></pre>
+                  <pre className="text-green-400"><code>{`npx threadlines check`}</code></pre>
                 </div>
                 <p className="text-slate-400 mt-4 italic">
                   That's it. One command.
