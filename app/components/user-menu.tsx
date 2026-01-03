@@ -60,12 +60,20 @@ export function UserMenu() {
 
   if (status === "unauthenticated" || !session) {
     return (
-      <Link
-        href="/auth/signin"
-        className="px-4 py-2 bg-green-400 text-black font-semibold rounded-lg hover:bg-green-500 transition-all"
-      >
-        Sign In
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link
+          href="/auth/signin"
+          className="px-4 py-2 bg-green-400 text-black font-semibold rounded-lg hover:bg-green-500 transition-all"
+        >
+          Sign In
+        </Link>
+        <Link
+          href="/auth/signup"
+          className="px-4 py-2 border border-slate-600 text-slate-300 font-semibold rounded-lg hover:border-slate-500 hover:text-white transition-all"
+        >
+          Sign Up
+        </Link>
+      </div>
     );
   }
 
