@@ -104,3 +104,15 @@ pre code {
   @apply bg-transparent p-0;
 }
 
+/* Toast animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+

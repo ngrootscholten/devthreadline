@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { parseEmails } from "../lib/utils/email-parser";
+import { useToast } from "./toast";
 
 interface InviteUsersModalProps {
   onClose: () => void;
@@ -9,6 +10,7 @@ interface InviteUsersModalProps {
 }
 
 export function InviteUsersModal({ onClose, onSuccess }: InviteUsersModalProps) {
+  const { showToast } = useToast();
   const [emailInput, setEmailInput] = useState("");
   const [parsedEmails, setParsedEmails] = useState<string[]>([]);
   const [inviting, setInviting] = useState(false);
@@ -60,12 +62,16 @@ export function InviteUsersModal({ onClose, onSuccess }: InviteUsersModalProps) 
         throw new Error(data.error || "Failed to invite users");
       }
 
+      const invitedCount = data.invited || parsedEmails.length;
       setSuccess(true);
+      showToast(`Successfully invited ${invitedCount} user${invitedCount !== 1 ? "s" : ""}!`, "success");
       setTimeout(() => {
         onSuccess();
       }, 1500);
     } catch (err: any) {
-      setError(err.message || "Failed to invite users");
+      const errorMessage = err.message || "Failed to invite users";
+      setError(errorMessage);
+      showToast(errorMessage, "error");
     } finally {
       setInviting(false);
     }

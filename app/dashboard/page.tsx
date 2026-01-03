@@ -478,10 +478,10 @@ function DashboardPageContent() {
                       className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors cursor-pointer"
                       onClick={() => router.push(`/check/${check.id}`)}
                     >
-                      <td className="py-3 px-4 text-sm text-slate-300">
+                      <td className="py-3 px-4">
                         {check.commitAuthorName ? (
                           <div className="flex flex-col gap-1">
-                            <span>{check.commitAuthorName}</span>
+                            <span className="text-slate-300 text-sm">{check.commitAuthorName}</span>
                             {check.commitAuthorEmail && (
                               <span className="text-slate-500 text-xs">{check.commitAuthorEmail}</span>
                             )}
@@ -508,13 +508,13 @@ function DashboardPageContent() {
                           <span className="text-slate-500">—</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-sm text-slate-300">
+                      <td className="py-3 px-4">
                         {(() => {
                           const { display, tooltip } = formatRelativeTime(check.createdAt);
                           return (
                             <Link 
                               href={`/check/${check.id}`} 
-                              className="hover:text-white transition-colors"
+                              className="text-slate-300 text-sm hover:text-white transition-colors"
                               title={tooltip}
                               onClick={(e) => e.stopPropagation()}
                             >
@@ -523,7 +523,7 @@ function DashboardPageContent() {
                           );
                         })()}
                       </td>
-                      <td className="py-3 px-4 text-sm text-slate-300">
+                      <td className="py-3 px-4">
                         {(() => {
                           const tooltipParts: string[] = [];
                           tooltipParts.push(`${check.filesChangedCount} file${check.filesChangedCount !== 1 ? 's' : ''} changed`);
@@ -537,7 +537,7 @@ function DashboardPageContent() {
                           return (
                             <span 
                               title={tooltipParts.join('\n')}
-                              className="cursor-help"
+                              className="text-slate-300 text-sm cursor-help"
                             >
                               {formatDiffStats(check.diffStats)}
                             </span>

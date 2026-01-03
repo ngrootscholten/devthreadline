@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { InviteUsersModal } from "../../components/invite-users-modal";
 import { EditUserModal } from "../../components/edit-user-modal";
+import { useToast } from "../../components/toast";
 
 interface User {
   id: string;
@@ -19,12 +20,13 @@ interface User {
 function UsersPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { showToast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<{ [key: string]: boolean }>({});
   const hasInitializedRef = useRef(false);
 
   const fetchUsers = useCallback(async () => {
@@ -77,14 +79,24 @@ function UsersPageContent() {
     fetchUsers();
   };
 
-  const handleEditSuccess = () => {
+  const handleEditSuccess = (updatedData: { name: string | null; role: string }) => {
+    if (editingUser) {
+      // Update only the specific user in state instead of refetching all users
+      setUsers(prevUsers => 
+        prevUsers.map(u => 
+          u.id === editingUser.id 
+            ? { ...u, name: updatedData.name, role: updatedData.role }
+            : u
+        )
+      );
+    }
     setEditingUser(null);
-    fetchUsers();
   };
 
   const handleSendMagicLink = async (userId: string) => {
+    const loadingKey = `${userId}-send-link`;
     try {
-      setActionLoading(userId);
+      setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
       const response = await fetch(`/api/admin/users/${userId}/send-magic-link`, {
         method: "POST",
         credentials: "include",
@@ -95,17 +107,18 @@ function UsersPageContent() {
         throw new Error(data.error || "Failed to send magic link");
       }
 
-      alert("Magic link sent successfully!");
+      showToast("Magic link sent successfully!", "success");
     } catch (err: any) {
-      alert(err.message || "Failed to send magic link");
+      showToast(err.message || "Failed to send magic link", "error");
     } finally {
-      setActionLoading(null);
+      setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
     }
   };
 
   const handleToggleActive = async (user: User) => {
+    const loadingKey = `${user.id}-toggle-active`;
     try {
-      setActionLoading(user.id);
+      setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
       const endpoint = user.isActive
         ? `/api/admin/users/${user.id}/deactivate`
         : `/api/admin/users/${user.id}/activate`;
@@ -120,11 +133,18 @@ function UsersPageContent() {
         throw new Error(data.error || `Failed to ${user.isActive ? "deactivate" : "activate"} user`);
       }
 
-      await fetchUsers();
+      // Update only the specific user in state instead of refetching all users
+      setUsers(prevUsers => 
+        prevUsers.map(u => 
+          u.id === user.id ? { ...u, isActive: !u.isActive } : u
+        )
+      );
+
+      showToast(`User ${user.isActive ? "deactivated" : "activated"} successfully!`, "success");
     } catch (err: any) {
-      alert(err.message || `Failed to ${user.isActive ? "deactivate" : "activate"} user`);
+      showToast(err.message || `Failed to ${user.isActive ? "deactivate" : "activate"} user`, "error");
     } finally {
-      setActionLoading(null);
+      setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
     }
   };
 
@@ -219,7 +239,7 @@ function UsersPageContent() {
                         <td className="py-3 px-4 text-white">
                           {user.name || <span className="text-slate-500 italic">Not set</span>}
                         </td>
-                        <td className="py-3 px-4 text-white">{user.email}</td>
+                        <td className="py-3 px-4 text-slate-300 text-sm">{user.email}</td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded text-xs font-medium ${
                             user.role === "account_admin"
@@ -245,30 +265,26 @@ function UsersPageContent() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => setEditingUser(user)}
-                              className="px-2 py-1 text-xs text-slate-400 hover:text-white transition-colors"
+                              className="px-2 py-1 text-sm text-slate-300 hover:underline transition-colors"
                               title="Edit user"
                             >
                               Edit
                             </button>
                             <button
                               onClick={() => handleSendMagicLink(user.id)}
-                              disabled={actionLoading === user.id}
-                              className="px-2 py-1 text-xs text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+                              disabled={actionLoading[`${user.id}-send-link`]}
+                              className="px-2 py-1 text-sm text-slate-300 hover:underline transition-colors disabled:opacity-50"
                               title="Send magic link"
                             >
-                              {actionLoading === user.id ? "Sending..." : "Send Link"}
+                              {actionLoading[`${user.id}-send-link`] ? "Sending..." : "Send link"}
                             </button>
                             <button
                               onClick={() => handleToggleActive(user)}
-                              disabled={actionLoading === user.id}
-                              className={`px-2 py-1 text-xs transition-colors disabled:opacity-50 ${
-                                user.isActive
-                                  ? "text-red-400 hover:text-red-300"
-                                  : "text-green-400 hover:text-green-300"
-                              }`}
+                              disabled={actionLoading[`${user.id}-toggle-active`]}
+                              className="px-2 py-1 text-sm text-slate-300 hover:underline transition-colors disabled:opacity-50"
                               title={user.isActive ? "Deactivate user" : "Activate user"}
                             >
-                              {actionLoading === user.id ? "..." : user.isActive ? "Deactivate" : "Activate"}
+                              {actionLoading[`${user.id}-toggle-active`] ? "..." : user.isActive ? "Deactivate" : "Activate"}
                             </button>
                           </div>
                         </td>

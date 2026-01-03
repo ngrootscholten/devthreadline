@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "./toast";
 
 interface User {
   id: string;
@@ -13,10 +14,11 @@ interface User {
 interface EditUserModalProps {
   user: User;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (updatedUser: { name: string | null; role: string }) => void;
 }
 
 export function EditUserModal({ user, onClose, onSuccess }: EditUserModalProps) {
+  const { showToast } = useToast();
   const [name, setName] = useState(user.name || "");
   const [role, setRole] = useState(user.role);
   const [saving, setSaving] = useState(false);
@@ -50,9 +52,13 @@ export function EditUserModal({ user, onClose, onSuccess }: EditUserModalProps) 
         throw new Error(data.error || "Failed to update user");
       }
 
-      onSuccess();
+      const updatedName = name.trim() || null;
+      showToast("User updated successfully!", "success");
+      onSuccess({ name: updatedName, role });
     } catch (err: any) {
-      setError(err.message || "Failed to update user");
+      const errorMessage = err.message || "Failed to update user";
+      setError(errorMessage);
+      showToast(errorMessage, "error");
     } finally {
       setSaving(false);
     }

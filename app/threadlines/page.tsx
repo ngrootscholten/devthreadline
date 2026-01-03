@@ -192,8 +192,8 @@ function ThreadlinesPageContent() {
                         className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors cursor-pointer"
                         onClick={() => router.push(`/threadlines/${threadline.id}`)}
                       >
-                        <td className="py-3 px-4 text-sm text-white font-mono">
-                          {threadline.threadlineId}
+                        <td className="py-3 px-4">
+                          <span className="text-slate-300 text-sm font-mono">{threadline.threadlineId}</span>
                         </td>
                         <td className="py-3 px-4 text-sm text-white font-mono">
                           {threadline.repoName ? (
@@ -210,11 +210,11 @@ function ThreadlinesPageContent() {
                         <td className="py-3 px-4 text-sm text-slate-300 font-mono">
                           {threadline.filePath}
                         </td>
-                        <td className="py-3 px-4 text-sm text-slate-300">
+                        <td className="py-3 px-4">
                           {(() => {
                             const { display, tooltip } = formatRelativeTime(threadline.createdAt);
                             return (
-                              <span title={tooltip} className="cursor-help">
+                              <span title={tooltip} className="text-slate-300 text-sm cursor-help">
                                 {display}
                               </span>
                             );
