@@ -43,6 +43,7 @@ export async function GET(
         td.threadline_patterns,
         td.threadline_content,
         td.repo_name,
+        td.predecessor_id,
         td.created_at
       FROM threadline_definitions td
       WHERE td.id = $1 AND td.account_id = $2`,
@@ -67,6 +68,7 @@ export async function GET(
         patterns: definition.threadline_patterns,
         content: definition.threadline_content,
         repoName: definition.repo_name,
+        predecessorId: definition.predecessor_id || null,
         createdAt: definition.created_at.toISOString()
       }
     });

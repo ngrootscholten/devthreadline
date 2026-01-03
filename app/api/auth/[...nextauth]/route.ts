@@ -128,8 +128,8 @@ function getNextAuthConfig(): NextAuthConfig {
           
           // Check if user is active - invalidate session if deactivated
           if (user.is_active === false) {
-            // Return null to invalidate the session for deactivated users
-            return null
+            // Throw error to invalidate the session for deactivated users
+            throw new Error('User account has been deactivated')
           }
           
           // Create account if user doesn't have one yet (first-time sign-in after email verification)
