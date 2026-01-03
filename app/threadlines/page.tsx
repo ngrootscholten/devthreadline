@@ -11,6 +11,12 @@ interface Threadline {
   filePath: string;
   repoName: string | null;
   createdAt: string;
+  results?: {
+    totalChecks: number;
+    compliant: number;
+    attention: number;
+    notRelevant: number;
+  };
 }
 
 interface Pagination {
@@ -180,9 +186,9 @@ function ThreadlinesPageContent() {
                   <thead>
                     <tr className="border-b border-slate-800">
                       <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Name</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Repository</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">File Path</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Repository / File Path</th>
                       <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Created At</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-400">Results</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -195,20 +201,27 @@ function ThreadlinesPageContent() {
                         <td className="py-3 px-4">
                           <span className="text-slate-300 text-sm font-mono">{threadline.threadlineId}</span>
                         </td>
-                        <td className="py-3 px-4 text-sm text-white font-mono">
+                        <td className="py-3 px-4">
                           {threadline.repoName ? (
-                            <span 
-                              title={threadline.repoName}
-                              className="cursor-help"
-                            >
-                              {formatRepoName(threadline.repoName)}
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              <span 
+                                title={threadline.repoName}
+                                className="text-slate-300 text-sm cursor-help"
+                              >
+                                {formatRepoName(threadline.repoName)}
+                              </span>
+                              <span className="text-slate-500 text-xs font-mono">
+                                {threadline.filePath}
+                              </span>
+                            </div>
                           ) : (
-                            <span className="text-slate-500">—</span>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-slate-500">—</span>
+                              <span className="text-slate-500 text-xs font-mono">
+                                {threadline.filePath}
+                              </span>
+                            </div>
                           )}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-slate-300 font-mono">
-                          {threadline.filePath}
                         </td>
                         <td className="py-3 px-4">
                           {(() => {
@@ -217,6 +230,33 @@ function ThreadlinesPageContent() {
                               <span title={tooltip} className="text-slate-300 text-sm cursor-help">
                                 {display}
                               </span>
+                            );
+                          })()}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-slate-300">
+                          {(() => {
+                            const results = threadline.results;
+                            if (!results || results.totalChecks === 0) {
+                              return <span className="text-slate-500">—</span>;
+                            }
+
+                            return (
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {results.compliant > 0 && (
+                                    <span className="text-green-400">{results.compliant} ✓</span>
+                                  )}
+                                  {results.attention > 0 && (
+                                    <span className="text-yellow-400">{results.attention} ⚠</span>
+                                  )}
+                                  {results.notRelevant > 0 && (
+                                    <span className="text-slate-500">{results.notRelevant} —</span>
+                                  )}
+                                </div>
+                                <span className="text-slate-500 text-xs">
+                                  {results.totalChecks} check{results.totalChecks !== 1 ? 's' : ''}
+                                </span>
+                              </div>
                             );
                           })()}
                         </td>

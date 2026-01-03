@@ -21,10 +21,19 @@ interface ThreadlineDetail {
 }
 
 interface ThreadlineStatistics {
-  totalChecks: number;
-  compliant: number;
-  attention: number;
-  notRelevant: number;
+  thisVersion: {
+    totalChecks: number;
+    compliant: number;
+    attention: number;
+    notRelevant: number;
+  };
+  totalVersions: number;
+  allVersions: {
+    totalChecks: number;
+    compliant: number;
+    attention: number;
+    notRelevant: number;
+  };
 }
 
 interface ThreadlineCheck {
@@ -390,22 +399,65 @@ export default function ThreadlineDetailPage() {
             <div className="mb-8">
               <h2 className="text-2xl font-semibold text-white mb-4">Statistics</h2>
               <div className="bg-slate-950/50 p-6 rounded-lg border border-slate-800">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-sm text-slate-400 mb-1">Total Checks</p>
-                    <p className="text-2xl font-semibold text-white">{statistics.totalChecks}</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* This Version Column */}
+                  <div className="flex flex-col items-center text-center">
+                    <h3 className="text-lg font-semibold text-slate-300 mb-4">This Version</h3>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {statistics.thisVersion.compliant > 0 && (
+                          <span className="text-green-400">{statistics.thisVersion.compliant} ✓</span>
+                        )}
+                        {statistics.thisVersion.attention > 0 && (
+                          <span className="text-yellow-400">{statistics.thisVersion.attention} ⚠</span>
+                        )}
+                        {statistics.thisVersion.notRelevant > 0 && (
+                          <span className="text-slate-500">{statistics.thisVersion.notRelevant} —</span>
+                        )}
+                        {statistics.thisVersion.compliant === 0 && 
+                         statistics.thisVersion.attention === 0 && 
+                         statistics.thisVersion.notRelevant === 0 && (
+                          <span className="text-slate-500">—</span>
+                        )}
+                      </div>
+                      <span className="text-slate-500 text-xs">
+                        {statistics.thisVersion.totalChecks} check{statistics.thisVersion.totalChecks !== 1 ? 's' : ''}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-slate-400 mb-1">✓ Compliant</p>
-                    <p className="text-2xl font-semibold text-green-400">{statistics.compliant}</p>
+
+                  {/* Version Count Column */}
+                  <div className="flex flex-col items-center text-center">
+                    <h3 className="text-lg font-semibold text-slate-300 mb-4">Version Count</h3>
+                    <div>
+                      <p className="text-2xl font-semibold text-white">{statistics.totalVersions}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-slate-400 mb-1">⚠ Attention</p>
-                    <p className="text-2xl font-semibold text-yellow-400">{statistics.attention}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-400 mb-1">— Not Relevant</p>
-                    <p className="text-2xl font-semibold text-slate-400">{statistics.notRelevant}</p>
+
+                  {/* All Versions Column */}
+                  <div className="flex flex-col items-center text-center">
+                    <h3 className="text-lg font-semibold text-slate-300 mb-4">All Versions</h3>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {statistics.allVersions.compliant > 0 && (
+                          <span className="text-green-400">{statistics.allVersions.compliant} ✓</span>
+                        )}
+                        {statistics.allVersions.attention > 0 && (
+                          <span className="text-yellow-400">{statistics.allVersions.attention} ⚠</span>
+                        )}
+                        {statistics.allVersions.notRelevant > 0 && (
+                          <span className="text-slate-500">{statistics.allVersions.notRelevant} —</span>
+                        )}
+                        {statistics.allVersions.compliant === 0 && 
+                         statistics.allVersions.attention === 0 && 
+                         statistics.allVersions.notRelevant === 0 && (
+                          <span className="text-slate-500">—</span>
+                        )}
+                      </div>
+                      <span className="text-slate-500 text-xs">
+                        {statistics.allVersions.totalChecks} check{statistics.allVersions.totalChecks !== 1 ? 's' : ''}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -439,37 +491,31 @@ export default function ThreadlineDetailPage() {
                       {/* Collapsed Summary */}
                       <div 
                         onClick={() => toggleCheck(check.checkId)}
-                        className="w-full p-4 hover:bg-slate-800/50 transition-colors flex items-center justify-between cursor-pointer"
+                        className="w-full p-4 hover:bg-slate-800/50 transition-colors flex items-center justify-between cursor-pointer gap-4"
                       >
-                        <div className="flex items-center gap-4 flex-1">
-                          <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${getStatusColor(check.status)}`}>
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <span className={`px-3 py-1 rounded-full text-sm font-semibold border flex-shrink-0 ${getStatusColor(check.status)}`}>
                             {check.status}
                           </span>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3">
-                              <Link
-                                href={`/check/${check.checkId}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-lg font-semibold text-white hover:underline"
-                              >
-                                Check {check.checkId.substring(0, 8)}
-                              </Link>
-                              {getEnvironmentBadge(check.environment)}
-                            </div>
-                            <div className="flex items-center gap-3 mt-1">
-                              <p className="text-sm text-slate-400" title={timeInfo.tooltip}>
-                                {timeInfo.display}
-                              </p>
-                              {check.branchName && (
-                                <p className="text-sm text-slate-500 font-mono">{check.branchName}</p>
-                              )}
-                              {check.repoName && (
-                                <p className="text-sm text-slate-500">{formatRepoName(check.repoName)}</p>
-                              )}
-                            </div>
-                          </div>
+                          <Link
+                            href={`/check/${check.checkId}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-sm font-semibold text-white hover:underline flex-shrink-0"
+                          >
+                            Check {check.checkId.substring(0, 8)}
+                          </Link>
+                          {getEnvironmentBadge(check.environment)}
+                          <p className="text-sm text-slate-400 flex-shrink-0" title={timeInfo.tooltip}>
+                            {timeInfo.display}
+                          </p>
+                          {check.branchName && (
+                            <p className="text-sm text-slate-500 font-mono flex-shrink-0">{check.branchName}</p>
+                          )}
+                          {check.repoName && (
+                            <p className="text-sm text-slate-500 flex-shrink-0 truncate">{formatRepoName(check.repoName)}</p>
+                          )}
                         </div>
-                        <div className="p-2">
+                        <div className="p-2 flex-shrink-0">
                           <svg
                             className={`w-5 h-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                             fill="none"
