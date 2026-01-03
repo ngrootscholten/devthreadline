@@ -1,7 +1,7 @@
 export default function Configuration() {
   return (
     <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
-      <h1 className="text-4xl font-bold mb-6 text-white">Configuration</h1>
+      <h1 className="text-4xl font-medium mb-6 text-white">Configuration</h1>
 
       <section className="mb-12">
         <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Environment Variables</h2>

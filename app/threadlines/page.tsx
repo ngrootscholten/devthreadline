@@ -158,7 +158,7 @@ function ThreadlinesPageContent() {
     <main className="min-h-screen">
       <section className="max-w-7xl mx-auto px-6 py-12">
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
-          <h1 className="text-4xl font-bold mb-3 text-white">Threadlines</h1>
+          <h1 className="text-4xl font-medium mb-3 text-white">Threadlines</h1>
 
           {error && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">

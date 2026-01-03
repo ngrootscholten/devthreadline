@@ -240,7 +240,7 @@ export default function CheckDetailPage() {
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
           {/* Summary Section */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-4 text-white">Check Summary</h1>
+            <h1 className="text-4xl font-medium mb-4 text-white">Check Summary</h1>
             <p className="text-slate-400 mb-6">{formatDate(check.createdAt)}</p>
 
             {/* Enhanced Statistics Panel with Summary */}

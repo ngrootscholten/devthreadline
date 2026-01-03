@@ -201,7 +201,7 @@ function UsersPageContent() {
       <section className="max-w-7xl mx-auto px-6 py-12">
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-4xl font-bold text-white">Manage Users</h1>
+            <h1 className="text-4xl font-medium text-white">Manage Users</h1>
             <button
               onClick={() => setShowInviteModal(true)}
               className="px-4 py-2 bg-green-400 text-black font-semibold rounded-lg hover:bg-green-500 transition-all"

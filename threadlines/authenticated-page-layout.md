@@ -31,7 +31,7 @@ All authenticated pages in the Threadline application must follow consistent lay
 ### Title Margin
 - **Required**: Use `mb-3` (12px) for margin below h1 titles
 - **Forbidden**: Do not use `mb-6` (24px) or other larger margin values
-- **Pattern**: `<h1 className="text-4xl font-bold mb-3 text-white">Title</h1>`
+- **Pattern**: `<h1 className="text-4xl font-medium mb-3 text-white">Title</h1>`
 
 ## Reference Implementation
 See `app/threadlines/page.tsx` for the canonical example of authenticated page layout.

@@ -137,7 +137,7 @@ export default function SettingsPage() {
     <main className="min-h-screen">
       <section className="max-w-4xl mx-auto px-6 py-12">
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
-          <h1 className="text-4xl font-bold mb-3 text-white">Settings</h1>
+          <h1 className="text-4xl font-medium mb-3 text-white">Settings</h1>
           
           <div className="space-y-6">
             {/* Account Identifier */}

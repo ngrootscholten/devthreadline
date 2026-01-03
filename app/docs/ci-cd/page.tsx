@@ -10,7 +10,7 @@ export default function CICD() {
 
   return (
     <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
-      <h1 className="text-4xl font-bold mb-6 text-white">CI/CD Integration</h1>
+      <h1 className="text-4xl font-medium mb-6 text-white">CI/CD Integration</h1>
 
       <section className="mb-12">
         <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Auto-Detection</h2>
