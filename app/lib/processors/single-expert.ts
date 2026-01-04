@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { ExpertResult } from '../types/result';
 import { buildPrompt } from '../llm/prompt-builder';
 import { filterDiffByFiles, extractFilesFromDiff } from '../utils/diff-filter';
+import { createSlimDiff } from '../utils/slim-diff';
 
 export interface ThreadlineInput {
   id: string;
@@ -64,8 +65,24 @@ export async function processThreadline(
   // Extract files actually present in the filtered diff
   const filesInFilteredDiff = extractFilesFromDiff(filteredDiff);
 
-  // Build prompt with filtered diff
-  const prompt = buildPrompt(threadline, filteredDiff, filesInFilteredDiff);
+  // Trim diff for LLM to reduce token costs (keep full diff for storage/UI)
+  // The CLI sends diffs with -U200 (200 lines context), which can be expensive.
+  // This trims the diff to only N context lines before sending to LLM.
+  // Set DIFF_CONTEXT_LINES_FOR_LLM env var to control (default: 10 lines).
+  // Note: Full filtered diff is still stored in DB for UI viewing.
+  const contextLinesForLLM = parseInt(process.env.DIFF_CONTEXT_LINES_FOR_LLM || '10', 10);
+  const trimmedDiffForLLM = createSlimDiff(filteredDiff, contextLinesForLLM);
+  
+  // Log diff trimming if it occurred
+  const originalLines = filteredDiff.split('\n').length;
+  const trimmedLines = trimmedDiffForLLM.split('\n').length;
+  if (trimmedLines < originalLines) {
+    const reductionPercent = Math.round(((originalLines - trimmedLines) / originalLines) * 100);
+    console.log(`   ✂️  Trimmed diff for LLM: ${originalLines} → ${trimmedLines} lines (${reductionPercent}% reduction, ${contextLinesForLLM} context lines)`);
+  }
+
+  // Build prompt with trimmed diff (full filtered diff is still stored for UI)
+  const prompt = buildPrompt(threadline, trimmedDiffForLLM, filesInFilteredDiff);
   
   console.log(`   📝 Processing ${threadline.id}: ${relevantFiles.length} relevant files, ${filesInFilteredDiff.length} files in filtered diff`);
 
