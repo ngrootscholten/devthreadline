@@ -489,15 +489,25 @@ export default function CheckDetailPage() {
                   {/* Collapsed Summary */}
                   <div 
                     onClick={() => toggleThreadline(threadline.threadlineId)}
-                    className={`w-full p-4 hover:bg-slate-800/50 transition-colors flex items-center justify-between cursor-pointer ${fix ? 'border-l-4 border-l-blue-500' : ''}`}
+                    className={`w-full p-4 hover:bg-slate-800/50 transition-colors flex items-center justify-between cursor-pointer ${
+                    fix 
+                      ? fix.fix_direction === 'detected'
+                        ? 'border-l-4 border-l-blue-500'
+                        : 'border-l-4 border-l-green-500'
+                      : ''
+                  }`}
                   >
                     <div className="flex items-center gap-4 flex-1">
                       <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${getStatusColor(threadline.status)}`}>
                         {threadline.status}
                       </span>
                       {fix && (
-                        <span className="px-2 py-1 rounded text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                          FIX
+                        <span className={`px-2 py-1 rounded text-xs font-medium border ${
+                          fix.fix_direction === 'detected'
+                            ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                            : 'bg-green-500/20 text-green-400 border-green-500/30'
+                        }`}>
+                          {fix.fix_direction === 'detected' ? 'FIX DETECTED' : 'FIXED LATER'}
                         </span>
                       )}
                       <div className="flex-1">
@@ -535,8 +545,18 @@ export default function CheckDetailPage() {
                         <div className="space-y-6">
                           {/* Fix Information */}
                           {fix && (
-                            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-                              <h4 className="text-sm font-semibold text-blue-400 mb-3">Fix Detected</h4>
+                            <div className={`rounded-lg p-4 border ${
+                              fix.fix_direction === 'detected'
+                                ? 'bg-blue-500/10 border-blue-500/30'
+                                : 'bg-green-500/10 border-green-500/30'
+                            }`}>
+                              <h4 className={`text-sm font-semibold mb-3 ${
+                                fix.fix_direction === 'detected'
+                                  ? 'text-blue-400'
+                                  : 'text-green-400'
+                              }`}>
+                                {fix.fix_direction === 'detected' ? 'Fix Detected' : 'Fixed in Later Check'}
+                              </h4>
                               <div className="grid md:grid-cols-2 gap-4 text-sm">
                                 <div>
                                   <p className="text-slate-400 mb-1">Fix Type</p>
@@ -556,7 +576,7 @@ export default function CheckDetailPage() {
                                   <p className="text-slate-400 mb-1">Detection Method</p>
                                   <p className="text-white">{fix.detection_method}</p>
                                 </div>
-                                {fix.previous_check_id && (
+                                {fix.fix_direction === 'detected' && fix.previous_check_id && (
                                   <div>
                                     <p className="text-slate-400 mb-1">Previous Check</p>
                                     <Link
@@ -567,9 +587,24 @@ export default function CheckDetailPage() {
                                     </Link>
                                   </div>
                                 )}
+                                {fix.fix_direction === 'resolved' && fix.current_check_id && (
+                                  <div>
+                                    <p className="text-slate-400 mb-1">Fixed in Check</p>
+                                    <Link
+                                      href={`/check/${fix.current_check_id}`}
+                                      className="text-green-400 hover:text-green-300 font-mono text-sm"
+                                    >
+                                      {fix.current_check_id.substring(0, 8)}...
+                                    </Link>
+                                  </div>
+                                )}
                               </div>
                               {fix.explanation && (
-                                <div className="mt-4 pt-4 border-t border-blue-500/20">
+                                <div className={`mt-4 pt-4 border-t ${
+                                  fix.fix_direction === 'detected'
+                                    ? 'border-blue-500/20'
+                                    : 'border-green-500/20'
+                                }`}>
                                   <p className="text-slate-400 mb-2 text-sm font-semibold">Explanation</p>
                                   <p className="text-slate-300 text-sm whitespace-pre-wrap">{fix.explanation}</p>
                                 </div>

@@ -4,7 +4,9 @@ import { getPool } from '@/app/lib/db';
 
 /**
  * GET /api/checks/[id]/fixes
- * Returns fixes detected in this check (where current_check_id = checkId)
+ * Returns fixes related to this check:
+ * - Fixes detected in this check (where current_check_id = checkId)
+ * - Fixes that resolved violations from this check (where previous_check_id = checkId)
  */
 export async function GET(
   req: NextRequest,
@@ -32,7 +34,8 @@ export async function GET(
     
     const accountId = session.user.accountId;
 
-    // Get fixes where this check is the current_check_id
+    // Get fixes where this check is either the current_check_id (fix detected here)
+    // or previous_check_id (violation from here was fixed later)
     const fixesResult = await pool.query(
       `SELECT 
          f.id,
@@ -49,10 +52,14 @@ export async function GET(
          f.evidence,
          f.time_between_checks_seconds,
          f.detection_method,
-         f.created_at
+         f.created_at,
+         CASE 
+           WHEN f.current_check_id = $2 THEN 'detected'
+           WHEN f.previous_check_id = $2 THEN 'resolved'
+         END as fix_direction
        FROM fixes f
        WHERE f.account_id = $1
-         AND f.current_check_id = $2
+         AND (f.current_check_id = $2 OR f.previous_check_id = $2)
        ORDER BY f.created_at DESC`,
       [accountId, checkId]
     );
