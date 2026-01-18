@@ -1,0 +1,62 @@
+# Bitbucket Pipelines Configuration
+#
+# This pipeline runs on:
+# - Push to any branch (including main)
+# - Pull requests
+#
+# Scenarios to test:
+# 1. Commit to main (direct push)
+# 2. Commit to a feature branch (push)
+# 3. Merge a branch to main (PR merge)
+#
+# Note: THREADLINE_API_KEY and THREADLINE_ACCOUNT must be set in
+# Bitbucket → Repository settings → Repository variables
+
+image: node:20
+
+clone:
+  # Fetch full history for git diff to work properly
+  # Set to 'full' to get all history, or a number for depth
+  depth: full
+
+pipelines:
+  # Default pipeline runs on all branch pushes
+  default:
+    - step:
+        name: Build and Test Context
+        caches:
+          - node
+        script:
+          - npm ci --no-workspaces
+          # Debug script - logs all Bitbucket env vars and git state
+          - npx tsx scripts/test-bitbucket-context.ts
+          # Main build (commented out until Bitbucket support is implemented)
+          # - npm run build
+
+  # Pull request pipeline
+  pull-requests:
+    '**':
+      - step:
+          name: PR Build and Test Context
+          caches:
+            - node
+          script:
+            - npm ci --no-workspaces
+            # Debug script - logs all Bitbucket env vars and git state
+            - npx tsx scripts/test-bitbucket-context.ts
+            # Main build (commented out until Bitbucket support is implemented)
+            # - npm run build
+
+  # Branch-specific pipelines (optional - can add specific branches later)
+  branches:
+    main:
+      - step:
+          name: Main Branch Build
+          caches:
+            - node
+          script:
+            - npm ci --no-workspaces
+            # Debug script - logs all Bitbucket env vars and git state
+            - npx tsx scripts/test-bitbucket-context.ts
+            # Main build (commented out until Bitbucket support is implemented)
+            # - npm run build
