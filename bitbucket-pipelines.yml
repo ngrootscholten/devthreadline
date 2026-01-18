@@ -30,8 +30,8 @@ pipelines:
           - npm ci --no-workspaces
           # Debug script - logs all Bitbucket env vars and git state
           - npx tsx scripts/test-bitbucket-context.ts
-          # Main build (commented out until Bitbucket support is implemented)
-          # - npm run build
+          # Threadlines check
+          - npx threadlines check
 
   # Pull request pipeline
   pull-requests:
@@ -44,8 +44,8 @@ pipelines:
             - npm ci --no-workspaces
             # Debug script - logs all Bitbucket env vars and git state
             - npx tsx scripts/test-bitbucket-context.ts
-            # Main build (commented out until Bitbucket support is implemented)
-            # - npm run build
+            # Threadlines check
+            - npx threadlines check
 
   # Branch-specific pipelines (optional - can add specific branches later)
   branches:
@@ -58,5 +58,5 @@ pipelines:
             - npm ci --no-workspaces
             # Debug script - logs all Bitbucket env vars and git state
             - npx tsx scripts/test-bitbucket-context.ts
-            # Main build (commented out until Bitbucket support is implemented)
-            # - npm run build
+            # Threadlines check
+            - npx threadlines check
