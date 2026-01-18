@@ -47,21 +47,41 @@ Threadlines CLI detects the CI environment and uses environment-specific variabl
 - `CI_MERGE_REQUEST_SOURCE_BRANCH_NAME` - Source branch
 - `CI_MERGE_REQUEST_TITLE` - MR title
 
-### Bitbucket Pipelines (tested 2026-01-18)
+### Bitbucket Pipelines (all tested 2026-01-18)
 - `BITBUCKET_BUILD_NUMBER` - Build number (used for detection)
 - `BITBUCKET_WORKSPACE` - Workspace name (e.g., "ngrootscholten")
 - `BITBUCKET_REPO_SLUG` - Repository slug (e.g., "threadline")
 - `BITBUCKET_REPO_FULL_NAME` - Full repo name (e.g., "ngrootscholten/threadline")
-- `BITBUCKET_BRANCH` - Branch name (e.g., "main")
+- `BITBUCKET_BRANCH` - Branch name / source branch in PR context
 - `BITBUCKET_COMMIT` - Commit SHA
 - `BITBUCKET_GIT_HTTP_ORIGIN` - HTTP repo URL
 - `BITBUCKET_GIT_SSH_ORIGIN` - SSH repo URL
-- `BITBUCKET_PR_ID` - PR number (not tested)
-- `BITBUCKET_PR_DESTINATION_BRANCH` - PR target branch (not tested)
+- `BITBUCKET_PR_ID` - PR number (set in PR context)
+- `BITBUCKET_PR_DESTINATION_BRANCH` - PR target branch (set in PR context)
+- `BITBUCKET_PR_DESTINATION_COMMIT` - PR target commit SHA (short, set in PR context)
 
-**Note**: Bitbucket does not provide commit author as an environment variable. Use `git log` to get author info.
+**Note**: Bitbucket does not provide commit author as an environment variable (unlike GitLab's `CI_COMMIT_AUTHOR` or GitHub's `GITHUB_EVENT_PATH` JSON). Use `git log -1 --format=%an` and `git log -1 --format=%ae` to get author name and email. This approach is verified by our test script and works in all scenarios (direct commit, feature branch, PR, merge commit).
 
-**Note**: Bitbucket does not provide a default branch environment variable (unlike GitLab's `CI_DEFAULT_BRANCH`).
+**Note**: Bitbucket does not provide PR title as an environment variable (unlike GitLab's `CI_MERGE_REQUEST_TITLE`).
+
+**Note**: Bitbucket does not provide a default branch environment variable (unlike GitLab's `CI_DEFAULT_BRANCH` or GitHub's `repository.default_branch` in event JSON).
+
+### Default Branch Detection Strategy
+
+For branch comparison, we need to know the default branch. Each CI provides this differently:
+
+| CI | How Default Branch is Provided |
+|----|-------------------------------|
+| GitHub | `repository.default_branch` in `GITHUB_EVENT_PATH` JSON |
+| GitLab | `CI_DEFAULT_BRANCH` env var |
+| Bitbucket | **Not provided** - we detect by checking if `origin/main` or `origin/master` exists |
+
+**Bitbucket approach:**
+1. In PR context: Use `BITBUCKET_PR_DESTINATION_BRANCH` (provided by Bitbucket)
+2. In non-PR context: Try `origin/main` first, then `origin/master`
+3. If neither exists: Fail with clear error suggesting to create a PR
+
+This covers the vast majority of repositories (main or master) and fails clearly for edge cases rather than silently doing the wrong thing.
 
 ## Real-World Examples
 
@@ -210,13 +230,48 @@ HEAD~1...HEAD: 1 file changed (only last commit, not full branch diff)
 - `origin/main` is already available with `depth: full` (unlike GitLab which needs a fetch)
 - Use `origin/main...HEAD` for feature branch diffs
 
-**Not Yet Tested:**
-- PR context (`BITBUCKET_PR_ID` etc.)
+### Bitbucket Pipelines (PR Context ✅)
 
-**For Bitbucket Pipelines:**
+From actual Bitbucket Pipelines PR build log (2026-01-18):
+
+```
+--- Pull Request ---
+BITBUCKET_PR_ID                               = 1
+BITBUCKET_PR_DESTINATION_BRANCH               = main
+BITBUCKET_PR_DESTINATION_COMMIT               = f0f0c737c936
+
+--- Branch & Commit ---
+BITBUCKET_BRANCH                              = bitbucket-test (source branch)
+BITBUCKET_COMMIT                              = b509cf8d8338ea78149baf48a4b3abd455cf689d
+
+--- Key Finding ---
+origin/main exists: YES ✅ (no fetch needed)
+
+--- Diff Test (origin/main...HEAD) ---
+docs/ci-environment-detection.md  | 94 +++++++++++++++++++++++++++++++++++++++
+scripts/test-bitbucket-context.ts |  1 +
+2 files changed, 95 insertions(+)
+```
+
+**Status**: ✅ Working correctly
+- PR variables are available when pipeline runs on a PR
+- Use `origin/${BITBUCKET_PR_DESTINATION_BRANCH}...HEAD` for PR diffs
+- No fetch needed (origin branches already available with `depth: full`)
+
+**Note**: Bitbucket does not provide PR title as an environment variable (unlike GitLab's `CI_MERGE_REQUEST_TITLE`).
+
+**For Bitbucket Pipelines (Summary):**
 - **Repository name**: Construct from `BITBUCKET_REPO_FULL_NAME` → `https://bitbucket.org/${REPO_FULL_NAME}.git`
 - **Branch name**: Use `BITBUCKET_BRANCH` directly
 - **Commit author**: Use `git log` (not available as env var)
-- **Diff strategy (main)**: `HEAD~1...HEAD` for direct commits to main
-- **Diff strategy (feature branch)**: `origin/main...HEAD` (no fetch needed)
+
+**Diff Strategy:**
+
+| Scenario | Target Branch Known? | Diff Command |
+|----------|---------------------|--------------|
+| **PR** | ✅ Yes - `BITBUCKET_PR_DESTINATION_BRANCH` | `origin/${BITBUCKET_PR_DESTINATION_BRANCH}...HEAD` |
+| **Feature branch (no PR)** | ❌ No - detect main/master | `origin/main...HEAD` or `origin/master...HEAD` |
+| **Push to default branch** | N/A | `HEAD~1...HEAD` |
+
+**Key point:** For PRs, Bitbucket provides `BITBUCKET_PR_DESTINATION_BRANCH` - this is the most relevant comparison point because it's where the code will be merged. For non-PR feature branches, we detect the default branch by checking if `origin/main` or `origin/master` exists.
 
