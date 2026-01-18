@@ -21,6 +21,7 @@ function runCommand(cmd: string): string {
 }
 
 
+
 function logSection(title: string) {
   console.log(`\n${'='.repeat(60)}`);
   console.log(`  ${title}`);
@@ -30,6 +31,19 @@ function logSection(title: string) {
 function logEnvVar(name: string) {
   const value = process.env[name];
   console.log(`${name.padEnd(45)} = ${value || '(not set)'}`);
+}
+
+/**
+ * Log diff result with clear distinction between error, empty, and actual output
+ */
+function logDiffResult(result: string) {
+  if (result.includes('ERROR') || result.includes('fatal:')) {
+    console.log(`❌ ERROR: ${result}`);
+  } else if (!result.trim()) {
+    console.log('(no changes - empty diff)');
+  } else {
+    console.log(result);
+  }
 }
 
 async function main() {
@@ -64,6 +78,9 @@ async function main() {
   logEnvVar('BITBUCKET_PR_ID');
   logEnvVar('BITBUCKET_PR_DESTINATION_BRANCH');
   logEnvVar('BITBUCKET_PR_DESTINATION_COMMIT');
+  // Check if PR title is available (not documented, but worth checking)
+  logEnvVar('BITBUCKET_PR_TITLE');
+  logEnvVar('BITBUCKET_PR_SOURCE_BRANCH');
   
   console.log('\n--- Deployment (if applicable) ---');
   logEnvVar('BITBUCKET_DEPLOYMENT_ENVIRONMENT');
@@ -192,56 +209,104 @@ async function main() {
     console.log(`  Status: ✅ AVAILABLE`);
   }
 
-  // 7. Diff Tests
+  // 7. Commit Author Detection
+  logSection('Commit Author Detection');
+  
+  console.log('\n--- Note: Bitbucket does NOT provide commit author as env var ---');
+  console.log('  Unlike GitLab (CI_COMMIT_AUTHOR) or GitHub (GITHUB_EVENT_PATH JSON),');
+  console.log('  Bitbucket requires using git log to get commit author.');
+  
+  console.log('\n--- Method: Git Log (git log -1 --format=%an/%ae) ---');
+  const authorName = runCommand('git log -1 --format=%an 2>&1');
+  const authorEmail = runCommand('git log -1 --format=%ae 2>&1');
+  
+  if (authorName.includes('ERROR') || authorName.includes('fatal:')) {
+    console.log(`  Name: ERROR - ${authorName}`);
+    console.log(`  Status: ❌ NOT AVAILABLE`);
+  } else if (!authorName.trim()) {
+    console.log(`  Name: (empty)`);
+    console.log(`  Status: ❌ NOT AVAILABLE`);
+  } else {
+    console.log(`  Name: ${authorName}`);
+  }
+  
+  if (authorEmail.includes('ERROR') || authorEmail.includes('fatal:')) {
+    console.log(`  Email: ERROR - ${authorEmail}`);
+    console.log(`  Status: ❌ NOT AVAILABLE`);
+  } else if (!authorEmail.trim()) {
+    console.log(`  Email: (empty)`);
+    console.log(`  Status: ❌ NOT AVAILABLE`);
+  } else {
+    console.log(`  Email: ${authorEmail}`);
+  }
+  
+  if (authorName && !authorName.includes('ERROR') && authorEmail && !authorEmail.includes('ERROR')) {
+    console.log(`  Combined: ${authorName} <${authorEmail}>`);
+    console.log(`  Status: ✅ AVAILABLE`);
+  }
+
+  // 8. Diff Tests
   logSection('Diff Tests');
   
-  const currentBranch = process.env.BITBUCKET_BRANCH || runCommand('git rev-parse --abbrev-ref HEAD');
+  // Show where we're getting values from (no silent fallbacks)
+  const branchFromEnv = process.env.BITBUCKET_BRANCH;
+  const branchFromGit = runCommand('git rev-parse --abbrev-ref HEAD');
+  const shaFromEnv = process.env.BITBUCKET_COMMIT;
+  const shaFromGit = runCommand('git rev-parse HEAD');
   const prId = process.env.BITBUCKET_PR_ID;
   const prDestination = process.env.BITBUCKET_PR_DESTINATION_BRANCH;
-  const currentSha = process.env.BITBUCKET_COMMIT || runCommand('git rev-parse HEAD');
   
-  console.log(`\nUsing branch: ${currentBranch}`);
-  console.log(`Using current SHA: ${currentSha}`);
-  console.log(`PR ID: ${prId || '(not a PR)'}`);
-  console.log(`PR destination: ${prDestination || '(not a PR)'}`);
+  console.log('\n--- Source Detection ---');
+  console.log(`Branch from BITBUCKET_BRANCH: ${branchFromEnv || '(not set)'}`);
+  console.log(`Branch from git rev-parse:    ${branchFromGit}`);
+  console.log(`SHA from BITBUCKET_COMMIT:    ${shaFromEnv || '(not set)'}`);
+  console.log(`SHA from git rev-parse:       ${shaFromGit}`);
+  console.log(`PR ID:                        ${prId || '(not a PR)'}`);
+  console.log(`PR destination:               ${prDestination || '(not a PR)'}`);
+  
+  // Use env var if available, otherwise git (and we've already shown both above)
+  const currentBranch = branchFromEnv || branchFromGit;
+  const currentSha = shaFromEnv || shaFromGit;
+  console.log(`\nUsing branch: ${currentBranch} (from ${branchFromEnv ? 'env' : 'git'})`);
+  console.log(`Using SHA: ${currentSha} (from ${shaFromEnv ? 'env' : 'git'})`);
   
   if (prId && prDestination) {
     console.log('\n--- PR Context Detected ---');
     
     console.log(`\n--- Test 1: PR Diff (origin/${prDestination} vs HEAD) ---`);
     const diff1 = runCommand(`git diff origin/${prDestination}...HEAD --stat 2>&1 | head -20`);
-    console.log(diff1 || '(no diff or error)');
+    logDiffResult(diff1);
   } else {
     console.log('\n--- Branch Push Context ---');
     
     console.log(`\n--- Test 1: Feature Branch vs Main (origin/main vs origin/${currentBranch}) ---`);
     const diff1 = runCommand(`git diff origin/main...origin/${currentBranch} --stat 2>&1 | head -20`);
-    console.log(diff1 || '(no diff or error)');
+    logDiffResult(diff1);
     
     console.log(`\n--- Test 1b: Feature Branch vs Main (origin/main vs HEAD) ---`);
     const diff1b = runCommand(`git diff origin/main...HEAD --stat 2>&1 | head -20`);
-    console.log(diff1b || '(no diff or error)');
+    logDiffResult(diff1b);
   }
   
   console.log('\n--- Test 2: Previous Commit vs Current (HEAD~1 vs HEAD) ---');
   const diff2 = runCommand('git diff HEAD~1...HEAD --stat 2>&1 | head -20');
-  console.log(diff2 || '(no diff or error)');
+  logDiffResult(diff2);
   
   console.log('\n--- Test 3: Main Before/After (origin/main~1 vs origin/main) ---');
   const diff3 = runCommand('git diff origin/main~1...origin/main --stat 2>&1 | head -20');
-  console.log(diff3 || '(no diff or error)');
+  logDiffResult(diff3);
   
   if (isMergeCommit) {
     console.log('\n--- Test 4: Merge Commit Show (git show HEAD) ---');
     const diff4 = runCommand('git show --stat HEAD 2>&1 | head -20');
-    console.log(diff4 || '(no diff or error)');
+    logDiffResult(diff4);
     
     console.log('\n--- Test 5: Merge Commit vs First Parent ---');
     const diff5 = runCommand('git diff HEAD^1...HEAD --stat 2>&1 | head -20');
-    console.log(diff5 || '(no diff or error)');
+    logDiffResult(diff5);
   }
 
-  // 8. Fetch-then-Diff Test (for shallow clone scenarios)
+  // 9. Fetch-then-Diff Test (for shallow clone scenarios)
   logSection('Fetch-then-Diff Test');
   
   console.log('\nThis test validates whether fetching the main branch at runtime');
@@ -303,12 +368,12 @@ async function main() {
     console.log(`\norigin/${fetchTarget} already exists - no fetch needed.`);
   }
 
-  // 9. Recent Commit History
+  // 10. Recent Commit History
   logSection('Recent Commit History');
   const history = runCommand('git log --oneline --graph -10');
   console.log(history || '(no history)');
 
-  // 10. Analysis
+  // 11. Analysis
   logSection('Analysis & Recommendations');
   
   const isPR = !!process.env.BITBUCKET_PR_ID;
