@@ -270,9 +270,58 @@ async function main() {
   
   const refName = process.env.GITHUB_REF_NAME || runCommand('git rev-parse --abbrev-ref HEAD');
   const currentSha = runCommand('git rev-parse HEAD');
+  const baseRef = process.env.GITHUB_BASE_REF;
+  const headRef = process.env.GITHUB_HEAD_REF;
+  const eventName = process.env.GITHUB_EVENT_NAME;
   
   console.log(`\nUsing refName: ${refName}`);
   console.log(`Using current SHA: ${currentSha}`);
+  if (baseRef) console.log(`GITHUB_BASE_REF: ${baseRef}`);
+  if (headRef) console.log(`GITHUB_HEAD_REF: ${headRef}`);
+  
+  // PR Context Tests (if PR detected)
+  if (eventName === 'pull_request' && baseRef) {
+    console.log('\n--- PR Context Tests ---');
+    console.log(`\nFetching base branch: origin/${baseRef}`);
+    const fetchResult = runCommand(`git fetch origin ${baseRef}:refs/remotes/origin/${baseRef} --depth=1 2>&1`);
+    console.log(fetchResult || '(fetch completed)');
+    
+    // Check if fetch worked
+    const baseRefCheck = runCommand(`git rev-parse --verify origin/${baseRef} 2>&1`);
+    const baseRefExists = !baseRefCheck.includes('fatal:') && !baseRefCheck.includes('error:');
+    console.log(`origin/${baseRef} exists after fetch: ${baseRefExists ? 'YES ✅' : 'NO ❌'}`);
+    
+    if (baseRefExists) {
+      console.log(`\n--- Test PR-1: origin/${baseRef}...HEAD (three dots - merge base) ---`);
+      const prDiff1 = runCommand(`git diff origin/${baseRef}...HEAD --stat 2>&1 | head -20`);
+      if (prDiff1.includes('fatal:') || prDiff1.includes('no merge base')) {
+        console.log(`❌ FAILED: ${prDiff1.split('\n')[0]}`);
+      } else {
+        console.log(`✅ SUCCESS`);
+        console.log(prDiff1 || '(no changes)');
+      }
+      
+      console.log(`\n--- Test PR-2: origin/${baseRef}..HEAD (two dots - direct comparison) ---`);
+      const prDiff2 = runCommand(`git diff origin/${baseRef}..HEAD --stat 2>&1 | head -20`);
+      if (prDiff2.includes('fatal:') || prDiff2.includes('error:')) {
+        console.log(`❌ FAILED: ${prDiff2.split('\n')[0]}`);
+      } else {
+        console.log(`✅ SUCCESS`);
+        console.log(prDiff2 || '(no changes)');
+      }
+      
+      if (headRef) {
+        console.log(`\n--- Test PR-3: origin/${baseRef}...origin/${headRef} (three dots - old approach) ---`);
+        const prDiff3 = runCommand(`git diff origin/${baseRef}...origin/${headRef} --stat 2>&1 | head -20`);
+        if (prDiff3.includes('fatal:') || prDiff3.includes('unknown revision')) {
+          console.log(`❌ FAILED: ${prDiff3.split('\n')[0]}`);
+        } else {
+          console.log(`✅ SUCCESS`);
+          console.log(prDiff3 || '(no changes)');
+        }
+      }
+    }
+  }
   
   console.log('\n--- Test 1: Current Strategy (origin/main vs origin/refName) ---');
   const diff1 = runCommand(`git diff origin/main...origin/${refName} --stat 2>&1 | head -20`);
