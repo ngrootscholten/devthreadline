@@ -16,14 +16,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          # Use shallow clone (default) to test if fetch-on-demand works
-          fetch-depth: 1
-      
-      - name: Fetch base branch for PR diffs
-        if: github.event_name == 'pull_request'
-        run: |
-          git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }} --depth=1
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
