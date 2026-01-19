@@ -55,6 +55,7 @@ async function main() {
   logEnvVar('GITHUB_REPOSITORY');
   logEnvVar('GITHUB_SERVER_URL');
   logEnvVar('GITHUB_RUN_ID');
+  logEnvVar('PR_TITLE');
 
   // 2. Git State
   logSection('Git State');
