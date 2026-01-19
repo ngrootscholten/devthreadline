@@ -22,6 +22,7 @@ function runCommand(cmd: string): string {
 
 
 
+
 function logSection(title: string) {
   console.log(`\n${'='.repeat(60)}`);
   console.log(`  ${title}`);
