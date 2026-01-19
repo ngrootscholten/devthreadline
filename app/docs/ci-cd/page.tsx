@@ -68,9 +68,6 @@ export default function CICD() {
         <p className="text-slate-300 mb-4">
           Threadline auto-detects <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm text-green-400">BITBUCKET_PR_ID</code> (PR context) or <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm text-green-400">BITBUCKET_COMMIT</code> (push context).
         </p>
-        <p className="text-slate-300 mb-4">
-          <strong className="text-white">Note:</strong> Ensure your pipeline uses <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm text-green-400">depth: full</code> in the clone settings for full git history.
-        </p>
       </section>
 
       <section className="mb-12">

@@ -98,7 +98,7 @@ export default function DiffDetection() {
         <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Bitbucket Pipelines</h2>
         
         <p className="text-slate-300 mb-4">
-          Bitbucket Pipelines with <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">depth: full</code> has full git history available.
+          Bitbucket Pipelines performs shallow clones by default. Threadline fetches branches on-demand when needed for PR comparisons.
         </p>
 
         <div className="bg-slate-950 border border-slate-800 rounded-lg p-6 mb-4">
@@ -110,10 +110,10 @@ export default function DiffDetection() {
             <strong className="text-white">What's included:</strong> All changes in the PR (target branch vs source branch)
           </p>
           <p className="text-slate-300 mb-2">
-            <strong className="text-white">How:</strong> Compares <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">origin/&#123;BITBUCKET_PR_DESTINATION_BRANCH&#125;...HEAD</code>
+            <strong className="text-white">How:</strong> Fetches destination branch, then compares <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">origin/&#123;BITBUCKET_PR_DESTINATION_BRANCH&#125;...HEAD</code>
           </p>
           <p className="text-slate-300">
-            Bitbucket provides the target branch via <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">BITBUCKET_PR_DESTINATION_BRANCH</code>.
+            The destination branch is fetched on-demand since Bitbucket only clones the source branch by default.
           </p>
         </div>
 

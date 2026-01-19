@@ -224,8 +224,8 @@ scripts/test-bitbucket-context.ts |  1 +
 
 **Status**: ✅ Working correctly
 - PR variables are available when pipeline runs on a PR
+- Destination branch is fetched on-demand for PR diffs
 - Use `origin/${BITBUCKET_PR_DESTINATION_BRANCH}...HEAD` for PR diffs
-- No fetch needed (origin branches already available with `depth: full`)
 
 **Note**: Bitbucket does not provide PR title as an environment variable (unlike GitLab's `CI_MERGE_REQUEST_TITLE`).
 
