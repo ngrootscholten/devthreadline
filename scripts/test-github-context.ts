@@ -357,7 +357,7 @@ async function main() {
   // 6. Recommendations
   logSection('Analysis & Recommendations');
   
-  const eventName = process.env.GITHUB_EVENT_NAME;
+  // eventName already declared above in Diff Tests section
   const isMainBranch = refName === 'main' || refName === 'master';
   
   console.log(`\nScenario Detection:`);
