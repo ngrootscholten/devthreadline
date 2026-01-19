@@ -2,8 +2,8 @@ import Link from "next/link";
 
 export default function UpcomingFeatures() {
   return (
-    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
-      <h1 className="text-4xl font-medium mb-6 text-white">Upcoming Features</h1>
+    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
+      <h1 className="text-4xl font-medium mb-3 text-white">Upcoming Features</h1>
 
       <section className="mb-12">
         <p className="text-slate-300 mb-4">

@@ -1,7 +1,7 @@
 export default function UsingCLI() {
   return (
-    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
-      <h1 className="text-4xl font-medium mb-6 text-white">Using the CLI</h1>
+    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
+      <h1 className="text-4xl font-medium mb-3 text-white">Using the CLI</h1>
 
       <section className="mb-12">
         <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Basic Usage</h2>
@@ -15,8 +15,8 @@ export default function UsingCLI() {
           By default, Threadline auto-detects your environment:
         </p>
         <ul className="list-disc list-inside mb-4 text-slate-300 space-y-2 ml-4">
-          <li><strong className="text-white">CI with branch:</strong> Reviews all commits in the branch vs base</li>
-          <li><strong className="text-white">CI without branch:</strong> Reviews the specific commit</li>
+          <li><strong className="text-white">CI with PR/MR:</strong> Reviews all changes in the PR (source vs target branch)</li>
+          <li><strong className="text-white">CI push (no PR):</strong> Reviews the last commit only</li>
           <li><strong className="text-white">Local development:</strong> Reviews staged/unstaged changes</li>
         </ul>
       </section>
@@ -24,14 +24,6 @@ export default function UsingCLI() {
       <section className="mb-12">
         <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Review Options</h2>
         
-        <h3 className="text-xl font-semibold mt-6 mb-3 text-slate-300">Review a Branch</h3>
-        <pre className="bg-slate-950 border border-slate-800 rounded-lg p-4 overflow-x-auto text-sm text-slate-300 mb-4">
-          <code>threadlines check --branch feature/new-feature</code>
-        </pre>
-        <p className="text-slate-300 mb-4">
-          Reviews all commits in the branch cumulatively (later commits can fix earlier violations).
-        </p>
-
         <h3 className="text-xl font-semibold mt-6 mb-3 text-slate-300">Review a Commit</h3>
         <pre className="bg-slate-950 border border-slate-800 rounded-lg p-4 overflow-x-auto text-sm text-slate-300 mb-4">
           <code>threadlines check --commit abc123def</code>
@@ -77,7 +69,7 @@ export default function UsingCLI() {
           This shows compliant, attention, and not_relevant items. Can be combined with any review option:
         </p>
         <pre className="bg-slate-950 border border-slate-800 rounded-lg p-4 overflow-x-auto text-sm text-slate-300 mb-4">
-          <code>threadlines check --branch feature/x --full</code>
+          <code>threadlines check --commit abc123 --full</code>
         </pre>
       </section>
 

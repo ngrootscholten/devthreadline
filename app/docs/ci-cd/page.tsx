@@ -9,8 +9,8 @@ export default function CICD() {
   ].join("\n");
 
   return (
-    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 md:p-12">
-      <h1 className="text-4xl font-medium mb-6 text-white">CI/CD Integration</h1>
+    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6">
+      <h1 className="text-4xl font-medium mb-3 text-white">CI/CD Integration</h1>
 
       <section className="mb-12">
         <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Auto-Detection</h2>
@@ -18,8 +18,8 @@ export default function CICD() {
           Threadline automatically detects CI environments and adjusts behavior:
         </p>
         <ul className="list-disc list-inside mb-4 text-slate-300 space-y-2 ml-4">
-          <li><strong className="text-white">Branch detected:</strong> Reviews all commits in branch vs base (cumulative)</li>
-          <li><strong className="text-white">Commit SHA detected:</strong> Reviews the specific commit</li>
+          <li><strong className="text-white">PR/MR detected:</strong> Reviews all changes in the PR (source vs target branch)</li>
+          <li><strong className="text-white">Push (no PR):</strong> Reviews the last commit only</li>
           <li><strong className="text-white">Local development:</strong> Reviews staged/unstaged changes</li>
         </ul>
         <p className="text-slate-300 mb-4">
@@ -50,6 +50,26 @@ export default function CICD() {
         </pre>
         <p className="text-slate-300 mb-4">
           Threadline auto-detects <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm text-green-400">CI_COMMIT_REF_NAME</code> (branch) or <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm text-green-400">CI_COMMIT_SHA</code> (commit).
+        </p>
+      </section>
+
+      <section className="mb-12">
+        <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Bitbucket Pipelines</h2>
+        <pre className="bg-slate-950 border border-slate-800 rounded-lg p-4 overflow-x-auto text-sm text-slate-300 mb-4">
+          <code>{`pipelines:
+  default:
+    - step:
+        script:
+          - npm ci
+          - npx threadlines check
+        # Set these in Repository settings → Repository variables
+        # THREADLINE_ACCOUNT, THREADLINE_API_KEY, THREADLINE_API_URL`}</code>
+        </pre>
+        <p className="text-slate-300 mb-4">
+          Threadline auto-detects <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm text-green-400">BITBUCKET_PR_ID</code> (PR context) or <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm text-green-400">BITBUCKET_COMMIT</code> (push context).
+        </p>
+        <p className="text-slate-300 mb-4">
+          <strong className="text-white">Note:</strong> Ensure your pipeline uses <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm text-green-400">depth: full</code> in the clone settings for full git history.
         </p>
       </section>
 

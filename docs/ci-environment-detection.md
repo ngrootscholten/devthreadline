@@ -66,23 +66,6 @@ Threadlines CLI detects the CI environment and uses environment-specific variabl
 
 **Note**: Bitbucket does not provide a default branch environment variable (unlike GitLab's `CI_DEFAULT_BRANCH` or GitHub's `repository.default_branch` in event JSON).
 
-### Default Branch Detection Strategy
-
-For branch comparison, we need to know the default branch. Each CI provides this differently:
-
-| CI | How Default Branch is Provided |
-|----|-------------------------------|
-| GitHub | `repository.default_branch` in `GITHUB_EVENT_PATH` JSON |
-| GitLab | `CI_DEFAULT_BRANCH` env var |
-| Bitbucket | **Not provided** - we detect by checking if `origin/main` or `origin/master` exists |
-
-**Bitbucket approach:**
-1. In PR context: Use `BITBUCKET_PR_DESTINATION_BRANCH` (provided by Bitbucket)
-2. In non-PR context: Try `origin/main` first, then `origin/master`
-3. If neither exists: Fail with clear error suggesting to create a PR
-
-This covers the vast majority of repositories (main or master) and fails clearly for edge cases rather than silently doing the wrong thing.
-
 ## Real-World Examples
 
 ### GitHub Actions (Working Correctly ✅)
@@ -209,26 +192,12 @@ BITBUCKET_COMMIT                              = 51e2498123bbc0f89f7bba14a575c65a
 BITBUCKET_PR_ID                               = (not set)
 BITBUCKET_PR_DESTINATION_BRANCH               = (not set)
 
---- Available Branches ---
-Local branches:
-bitbucket-test
-Remote branches:
-origin/HEAD
-origin/bitbucket-test
-origin/main
-
---- Key Finding ---
-origin/main exists: YES ✅ (no fetch needed, unlike GitLab)
-
---- Diff Tests ---
-origin/main...origin/bitbucket-test: 1 file changed ✅
-origin/main...HEAD: 1 file changed ✅ (use this - simpler)
-HEAD~1...HEAD: 1 file changed (only last commit, not full branch diff)
+--- Diff Test (HEAD~1...HEAD) ---
+1 file changed
 ```
 
 **Status**: ✅ Working correctly
-- `origin/main` is already available with `depth: full` (unlike GitLab which needs a fetch)
-- Use `origin/main...HEAD` for feature branch diffs
+- Non-PR pushes review the last commit only (`HEAD~1...HEAD`)
 
 ### Bitbucket Pipelines (PR Context ✅)
 
@@ -267,11 +236,10 @@ scripts/test-bitbucket-context.ts |  1 +
 
 **Diff Strategy:**
 
-| Scenario | Target Branch Known? | Diff Command |
-|----------|---------------------|--------------|
-| **PR** | ✅ Yes - `BITBUCKET_PR_DESTINATION_BRANCH` | `origin/${BITBUCKET_PR_DESTINATION_BRANCH}...HEAD` |
-| **Feature branch (no PR)** | ❌ No - detect main/master | `origin/main...HEAD` or `origin/master...HEAD` |
-| **Push to default branch** | N/A | `HEAD~1...HEAD` |
+| Scenario | Diff Command |
+|----------|--------------|
+| **PR** | `origin/${BITBUCKET_PR_DESTINATION_BRANCH}...HEAD` (full PR diff) |
+| **Any push (no PR)** | `HEAD~1...HEAD` (last commit only) |
 
-**Key point:** For PRs, Bitbucket provides `BITBUCKET_PR_DESTINATION_BRANCH` - this is the most relevant comparison point because it's where the code will be merged. For non-PR feature branches, we detect the default branch by checking if `origin/main` or `origin/master` exists.
+**Key point:** For PRs, Bitbucket provides `BITBUCKET_PR_DESTINATION_BRANCH` - this is the most relevant comparison point because it's where the code will be merged. For non-PR pushes (main or feature branch), we review the last commit only.
 
