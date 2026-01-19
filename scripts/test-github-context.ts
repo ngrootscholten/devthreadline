@@ -65,15 +65,19 @@ async function main() {
   console.log(`Current commit (short): ${runCommand('git rev-parse --short HEAD')}`);
   
   console.log('\n--- Commit Information ---');
-  console.log(`Commit message (first line): ${runCommand('git log -1 --format=%s')}`);
-  console.log(`Commit author: ${runCommand('git log -1 --format=%an <%ae>')}`);
-  console.log(`Commit date: ${runCommand('git log -1 --format=%ai')}`);
+  const commitMessage = runCommand('git log -1 --format="%s"');
+  console.log(`Commit message (first line): ${commitMessage && !commitMessage.includes('ERROR') ? commitMessage : '(error getting message)'}`);
+  const commitAuthor = runCommand('git log -1 --format="%an <%ae>"');
+  console.log(`Commit author: ${commitAuthor && !commitAuthor.includes('ERROR') ? commitAuthor : '(error getting author)'}`);
+  const commitDate = runCommand('git log -1 --format="%ai"');
+  console.log(`Commit date: ${commitDate && !commitDate.includes('ERROR') ? commitDate : '(error getting date)'}`);
   
   console.log('\n--- Commit Parents (for merge detection) ---');
-  const parentShas = runCommand('git log -1 --format=%P');
-  console.log(`Parent SHAs: ${parentShas || '(none - initial commit)'}`);
+  const parentShas = runCommand('git log -1 --format="%P"');
+  const parentShasClean = parentShas && !parentShas.includes('ERROR') ? parentShas.trim() : '';
+  console.log(`Parent SHAs: ${parentShasClean || '(none - initial commit)'}`);
   // Count parents by splitting the parent SHAs string
-  const parentCount = parentShas ? parentShas.split(/\s+/).filter(s => s.length > 0).length : 0;
+  const parentCount = parentShasClean ? parentShasClean.split(/\s+/).filter(s => s.length > 0).length : 0;
   console.log(`Parent count: ${parentCount}`);
   const isMergeCommit = parentCount > 1;
   console.log(`Is merge commit: ${isMergeCommit ? 'YES ✅' : 'NO'}`);
@@ -97,12 +101,24 @@ async function main() {
   
   console.log('\n--- Available Branches ---');
   console.log('Local branches:');
-  const localBranches = runCommand('git branch --format="%(refname:short)"');
-  console.log(localBranches || '(none)');
+  const localBranches = runCommand('git branch --format="%(refname:short)" 2>&1');
+  if (localBranches && !localBranches.includes('ERROR')) {
+    console.log(localBranches || '(none)');
+  } else {
+    // Fallback to simpler command
+    const localBranchesSimple = runCommand('git branch 2>&1');
+    console.log(localBranchesSimple || '(none)');
+  }
   
   console.log('\nRemote branches:');
-  const remoteBranches = runCommand('git branch -r --format="%(refname:short)"');
-  console.log(remoteBranches || '(none)');
+  const remoteBranches = runCommand('git branch -r --format="%(refname:short)" 2>&1');
+  if (remoteBranches && !remoteBranches.includes('ERROR')) {
+    console.log(remoteBranches || '(none)');
+  } else {
+    // Fallback to simpler command
+    const remoteBranchesSimple = runCommand('git branch -r 2>&1');
+    console.log(remoteBranchesSimple || '(none)');
+  }
   
   console.log('\n--- Main Branch Detection ---');
   const mainExists = runCommand('git rev-parse --verify origin/main 2>/dev/null && echo "YES" || echo "NO"');
@@ -164,14 +180,9 @@ async function main() {
     try {
       const eventData = JSON.parse(fs.readFileSync(eventPath, 'utf-8'));
       console.log(`  GITHUB_EVENT_PATH: ${eventPath}`);
+      console.log(`  File exists: YES`);
       
-      // Dump entire JSON for analysis (formatted for readability)
-      console.log('\n  --- Full Event JSON (for analysis) ---');
-      console.log(JSON.stringify(eventData, null, 2));
-      console.log('  --- End Event JSON ---\n');
-      
-      // Try to find default_branch in the event data
-      // It might be at: repository.default_branch, or pull_request.base.repo.default_branch, etc.
+      // Try to find default_branch in the event data (without dumping entire JSON)
       const defaultBranch = eventData.repository?.default_branch || 
                            eventData.pull_request?.base?.repo?.default_branch ||
                            eventData.pull_request?.base?.ref; // fallback to base ref
@@ -180,10 +191,6 @@ async function main() {
         console.log(`  Found default_branch: ${defaultBranch}`);
       } else {
         console.log(`  default_branch not found in event JSON`);
-        console.log(`  Available keys in repository: ${eventData.repository ? Object.keys(eventData.repository).join(', ') : 'N/A'}`);
-        if (eventData.pull_request) {
-          console.log(`  Available keys in pull_request.base.repo: ${eventData.pull_request.base?.repo ? Object.keys(eventData.pull_request.base.repo).join(', ') : 'N/A'}`);
-        }
       }
     } catch (error: any) {
       console.log(`  Result: ERROR reading event file - ${error.message}`);
