@@ -47,6 +47,8 @@ function logDiffResult(result: string) {
   }
 }
 
+
+
 async function main() {
   console.log('\n🔍 Bitbucket Pipelines Context Test Script\n');
   console.log(`Timestamp: ${new Date().toISOString()}`);
