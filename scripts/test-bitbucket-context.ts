@@ -16,6 +16,8 @@ function runCommand(cmd: string): string {
   try {
     return execSync(cmd, { encoding: 'utf-8', cwd: process.cwd() }).trim();
   } catch (error: any) {
+    console.error(`[ERROR] Command failed: ${cmd}`);
+    console.error(`[ERROR] Error: ${error.message}`);
     return `ERROR: ${error.message}`;
   }
 }
