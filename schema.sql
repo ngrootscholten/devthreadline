@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS checks (
   commit_author_email TEXT,
   pr_title TEXT,
   environment TEXT,
-  review_context TEXT,
+  review_context TEXT CHECK (review_context IS NULL OR review_context IN ('local', 'commit', 'pr', 'file', 'folder', 'files')),
   llm_model TEXT,
   cli_version TEXT,
   diff_lines_added INTEGER DEFAULT 0,

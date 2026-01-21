@@ -10,7 +10,7 @@ interface StoreCheckParams {
   result: ProcessThreadlinesResponse;
   diffStats: { added: number; removed: number; total: number };
   contextStats: { fileCount: number; totalLines: number };
-  reviewContext: string; // 'local', 'branch', 'commit', 'file', 'folder', 'files'
+  reviewContext: 'local' | 'commit' | 'pr' | 'file' | 'folder' | 'files'; // Context type from CLI - 'local', 'commit', 'pr' (CI), or 'file', 'folder', 'files' (local only)
   commitSha?: string;
   commitAuthorName?: string;
   commitAuthorEmail?: string;
