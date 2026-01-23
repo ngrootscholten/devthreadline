@@ -32,6 +32,7 @@ function logEnvVar(name: string) {
 }
 
 async function main() {
+  //Testing Gitlab CI - commit 1
   console.log('\n🔍 GitLab CI Context Test Script\n');
   console.log(`Timestamp: ${new Date().toISOString()}`);
   console.log(`Working Directory: ${process.cwd()}`);
