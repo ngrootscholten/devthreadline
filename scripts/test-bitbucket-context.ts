@@ -48,11 +48,18 @@ function logDiffResult(result: string) {
   }
 }
 
+
+/**
+ * Comment for COMMIT 2 in test/bitbucket-feature-branch
+ */
 async function main() {
   console.log('\n🔍 Bitbucket Pipelines Context Test Script\n');
   console.log(`Timestamp: ${new Date().toISOString()}`);
   console.log(`Working Directory: ${process.cwd()}`);
 
+
+  // Comment for COMMIT 3 in test/bitbucket-feature-branch
+  
   // 1. Bitbucket Pipelines Environment Variables
   logSection('Bitbucket Pipelines Environment Variables');
   

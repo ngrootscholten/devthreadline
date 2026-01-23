@@ -29,6 +29,7 @@ export interface ReviewRequest {
   prTitle?: string;      // PR/MR title (when GitLab MR context available)
   environment?: string;  // Environment where check was run: 'vercel', 'github', 'gitlab', 'local'
   cliVersion?: string;  // CLI version that ran this check
+  reviewContext: 'local' | 'commit' | 'pr' | 'file' | 'folder' | 'files'; // REQUIRED: Context type - 'local', 'commit', 'pr' (CI), or 'file', 'folder', 'files' (local only)
 }
 
 function countLinesInDiff(diff: string): { added: number; removed: number; total: number } {
@@ -143,6 +144,19 @@ export async function POST(req: NextRequest) {
     if (request.diff === undefined || request.diff === null || typeof request.diff !== 'string') {
       return NextResponse.json(
         { error: 'diff must be a string (empty string is allowed for no changes)' },
+        { status: 400 }
+      );
+    }
+
+    // Validate reviewContext - must be one of the allowed values
+    const allowedReviewContexts = ['local', 'commit', 'pr', 'file', 'folder', 'files'] as const;
+    if (!request.reviewContext || !allowedReviewContexts.includes(request.reviewContext)) {
+      return NextResponse.json(
+        { 
+          error: `reviewContext is required and must be one of: ${allowedReviewContexts.join(', ')}`,
+          received: request.reviewContext || '(missing)',
+          allowedValues: allowedReviewContexts
+        },
         { status: 400 }
       );
     }
@@ -276,13 +290,8 @@ export async function POST(req: NextRequest) {
 
     console.log(`✅ Processed: ${result.results.length} results, ${result.metadata.completed} completed, ${result.metadata.timedOut} timed out, ${result.metadata.errors} errors`);
 
-    // Determine review context type
-    // Note: We infer from available data - could be enhanced with explicit context field in request
-    let reviewContext = 'local';
-    if (request.repoName && request.branchName) {
-      reviewContext = 'branch'; // Most common case - branch review
-    }
-    // TODO: Could add explicit review_context field to request for more precise tracking
+    // Use reviewContext from request (already validated above)
+    const reviewContext = request.reviewContext;
 
     // Store check in audit database (non-blocking - don't fail request if this fails)
     let checkId: string | null = null;
