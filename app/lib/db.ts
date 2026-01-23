@@ -14,7 +14,7 @@ export function getPool(): Pool {
       // Supabase connection pooler settings
       max: 20, // Maximum number of clients in the pool
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      connectionTimeoutMillis: 10000, // Increased for US-AU latency
     });
 
     // Set timezone on new connections to avoid pg_timezone_names lookups
