@@ -343,28 +343,25 @@ export function ChecksTable({ checks, pagination, onPageChange }: ChecksTablePro
                     )}
                   </td>
                   <td className="py-3 px-4 text-sm">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {getEnvironmentBadge(check.environment)}
-                      {getReviewContextBadge(check.reviewContext)}
-                      {!check.environment && !check.reviewContext && (
-                        <span className="text-slate-500">—</span>
-                      )}
-                    </div>
+                    {getEnvironmentBadge(check.environment) || <span className="text-slate-500">—</span>}
                   </td>
                   <td className="py-3 px-4 text-sm text-slate-300 font-mono">
                     {check.branchName || <span className="text-slate-500">—</span>}
                   </td>
                   <td className="py-3 px-4 text-sm text-white font-mono">
-                    {check.repoName ? (
-                      <span 
-                        title={check.repoName}
-                        className="cursor-help"
-                      >
-                        {formatRepoName(check.repoName)}
-                      </span>
-                    ) : (
-                      <span className="text-slate-500">—</span>
-                    )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {check.repoName ? (
+                        <span 
+                          title={check.repoName}
+                          className="cursor-help"
+                        >
+                          {formatRepoName(check.repoName)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">—</span>
+                      )}
+                      {getReviewContextBadge(check.reviewContext)}
+                    </div>
                   </td>
                   <td className="py-3 px-4">
                     {(() => {
