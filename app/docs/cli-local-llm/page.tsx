@@ -333,109 +333,46 @@ Key Insight:
       </section>
 
       <section className="mb-12">
-        <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Phased Implementation Plan</h2>
+        <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Implementation Plan</h2>
         
+        <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-4">
+          <p className="text-slate-300 text-sm">
+            <strong className="text-white">Prerequisite:</strong> Storage function <code className="bg-slate-800 px-1 py-0.5 rounded">storeCheckAndMetrics()</code> exists at <code className="bg-slate-800 px-1 py-0.5 rounded">app/lib/audit/store-check-and-metrics.ts</code>. Both paths (web app LLM, CLI sync) use this function with the same <code className="bg-slate-800 px-1 py-0.5 rounded">ProcessThreadlinesResponse</code> interface.
+          </p>
+        </div>
+
         <div className="bg-slate-950 border border-slate-800 rounded-lg p-6 mb-4">
-          <h3 className="text-xl font-semibold mb-3 text-slate-200">Phase 1: Refactor Server-Side Storage Logic</h3>
+          <h3 className="text-xl font-semibold mb-3 text-slate-200">Next: Add Sync Endpoint</h3>
           
-          <p className="text-slate-300 mb-4 text-sm">
-            Extract the storage and metrics logic into a reusable function that both endpoints can use.
+          <p className="text-slate-300 mb-3 text-sm">
+            Create <code className="bg-slate-800 px-1 py-0.5 rounded">POST /api/threadline-check-results</code> — same as current endpoint minus LLM processing.
           </p>
 
-          <div className="mb-4">
-            <p className="text-slate-200 font-semibold mb-2 text-sm">Current Structure (Monolithic)</p>
-            <pre className="bg-slate-900 border border-slate-800 rounded-lg p-4 overflow-x-auto text-sm text-slate-300 mb-4 font-mono">
-{`POST /api/threadline-check (route.ts)
-│
-├─ Validate request
-├─ Calculate stats (diffStats, contextStats)
-├─ Authenticate (get accountId, userId)
-├─ Get OpenAI API key
-├─ processThreadlines() → LLM calls
-│  └─ Returns: result (ProcessThreadlinesResponse)
-│
-├─ [INLINE] Store check in DB
-│  ├─ storeCheck() → inserts check, threadlines, results
-│  └─ Returns: checkId
-│
-├─ [INLINE] Log metrics
-│  ├─ Get check_threadline_id mappings
-│  ├─ Log LLM call metrics (per threadline)
-│  └─ Log check summary metrics
-│
-└─ Return result to CLI`}
-            </pre>
-          </div>
+          <pre className="bg-slate-900 border border-slate-800 rounded-lg p-4 overflow-x-auto text-sm text-slate-300 mb-4 font-mono">
+{`// CLI sends: ReviewRequest + results + metadata
+{
+  ...reviewRequest,                                         // Same as today
+  results: ProcessThreadlineResult[],                       // Already processed
+  metadata: { totalThreadlines, completed, timedOut, errors, llmModel }
+}
 
-          <div className="mb-4">
-            <p className="text-slate-200 font-semibold mb-2 text-sm">Proposed Refactored Structure</p>
-            <pre className="bg-slate-900 border border-slate-800 rounded-lg p-4 overflow-x-auto text-sm text-slate-300 mb-4 font-mono">
-{`NEW FUNCTION: storeCheckAndMetrics()
-  ├─ Input: {request, result, diffStats, contextStats, reviewContext, ...}
-  ├─ Calls: storeCheck() → returns checkId
-  ├─ Calls: logMetrics() → logs LLM metrics + summary
-  └─ Returns: checkId
+// Endpoint: validate → auth → storeCheckAndMetrics() → return success`}
+          </pre>
+        </div>
 
-POST /api/threadline-check (route.ts) - UPDATED
-│
-├─ Validate request
-├─ Calculate stats (diffStats, contextStats)
-├─ Authenticate (get accountId, userId)
-├─ Get OpenAI API key
-├─ processThreadlines() → LLM calls
-│  └─ Returns: result
-│
-├─ storeCheckAndMetrics({request, result, ...})
-│  └─ Returns: checkId
-│
-└─ Return result to CLI
+        <div className="bg-slate-950 border border-slate-800 rounded-lg p-6 mb-4">
+          <h3 className="text-xl font-semibold mb-3 text-slate-200">Then: Port Processing to CLI</h3>
+          
+          <p className="text-slate-300 mb-3 text-sm">
+            Port <code className="bg-slate-800 px-1 py-0.5 rounded">processThreadlines()</code>, <code className="bg-slate-800 px-1 py-0.5 rounded">buildPrompt()</code>, diff filtering to CLI. Returns same <code className="bg-slate-800 px-1 py-0.5 rounded">ProcessThreadlinesResponse</code>.
+          </p>
 
-POST /api/threadline-check-results (NEW route.ts)
-│
-├─ Validate request (includes results)
-├─ Calculate stats (diffStats, contextStats)
-├─ Authenticate (get accountId, userId)
-│
-├─ storeCheckAndMetrics({request, result, ...})
-│  └─ Returns: checkId
-│  └─ (Skips LLM processing - results already provided)
-│
-└─ Return success/error`}
-            </pre>
-          </div>
-
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-4">
-            <p className="text-blue-400 font-semibold mb-2 text-sm">✅ Benefits of This Approach</p>
-            <ul className="list-disc list-inside text-slate-300 text-xs space-y-1 ml-4">
-              <li><strong className="text-white">Code Reuse:</strong> Storage + metrics logic written once, used by both endpoints</li>
-              <li><strong className="text-white">Separation of Concerns:</strong> Clear boundary between processing (LLM) and storage (DB)</li>
-              <li><strong className="text-white">Easier Testing:</strong> Can test storage logic independently of endpoint handlers</li>
-              <li><strong className="text-white">Backward Compatible:</strong> Current endpoint behavior unchanged, just refactored internally</li>
-              <li><strong className="text-white">Low Risk:</strong> No changes to CLI or external APIs, pure internal refactoring</li>
-            </ul>
-          </div>
-
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-            <p className="text-yellow-400 font-semibold mb-2 text-sm">⚠️ Considerations</p>
-            <ul className="list-disc list-inside text-slate-300 text-xs space-y-1 ml-4">
-              <li><strong className="text-white">Function Signature:</strong> Needs to accept both "result from LLM" and "result from CLI" formats - ensure compatibility</li>
-              <li><strong className="text-white">Metrics Logging:</strong> Current endpoint logs LLM metrics. New endpoint won't have LLM metrics. Function should handle both cases gracefully.</li>
-              <li><strong className="text-white">Error Handling:</strong> Both endpoints need same error handling (non-fatal storage failures, etc.)</li>
-              <li><strong className="text-white">Timing:</strong> Current endpoint tracks checkStartedAt/checkFinishedAt. New endpoint should too, but timing will be different (no LLM processing time).</li>
-            </ul>
-          </div>
-
-          <div className="mt-4">
-            <p className="text-slate-300 text-sm">
-              <strong className="text-white">Is this a good first step?</strong> Yes. This refactoring:
-            </p>
-            <ul className="list-disc list-inside text-slate-300 text-xs space-y-1 ml-4 mt-2">
-              <li>Prepares the codebase for the new endpoint without breaking existing functionality</li>
-              <li>Makes the storage logic testable and reusable</li>
-              <li>Reduces risk by separating concerns before adding new features</li>
-              <li>Can be done independently, then the new endpoint becomes trivial to add</li>
-            </ul>
-          </div>
+          <pre className="bg-slate-900 border border-slate-800 rounded-lg p-4 overflow-x-auto text-sm text-slate-300 font-mono">
+{`// CLI: process locally, optionally sync
+const result = await processThreadlines({...});
+displayResults(result);
+if (shouldSync) await client.syncResults({...reviewRequest, ...result});`}
+          </pre>
         </div>
       </section>
 
