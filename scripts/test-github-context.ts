@@ -172,6 +172,56 @@ async function main() {
     'Full commit message'
   );
 
+  // 6.5. Merge Commit Detection & Diff Behavior
+  logSection('Merge Commit Detection & Diff Behavior');
+  
+  // Check if HEAD is a merge commit
+  const isMergeCheck = runCommand('git rev-parse --verify HEAD^2 2>&1');
+  const isMerge = !isMergeCheck.includes('fatal:') && !isMergeCheck.includes('error:');
+  
+  console.log(`\n--- Is HEAD a merge commit? ---`);
+  console.log(`  ${isMerge ? '✅ YES' : '❌ NO'}`);
+  if (isMerge) {
+    console.log(`  ⚠️  Merge commits show combined diff by default (all changes from merged branch)`);
+    console.log(`  💡 Use --first-parent to show only changes relative to base branch`);
+  }
+  
+  if (isMerge) {
+    console.log(`\n--- Merge Commit Diff Comparison ---`);
+    
+    // Show file count WITHOUT --first-parent (combined diff)
+    const filesWithoutFirstParent = runCommand('git show HEAD --name-only --format= --pretty=format: 2>&1 | grep -v "^$" | wc -l');
+    console.log(`\n  Files changed WITHOUT --first-parent: ${filesWithoutFirstParent.trim()}`);
+    
+    // Show file count WITH --first-parent (base branch diff)
+    const filesWithFirstParent = runCommand('git show HEAD --first-parent --name-only --format= --pretty=format: 2>&1 | grep -v "^$" | wc -l');
+    console.log(`  Files changed WITH --first-parent: ${filesWithFirstParent.trim()}`);
+    
+    // Show actual file lists
+    console.log(`\n  Files WITHOUT --first-parent (first 10):`);
+    const fileListWithout = runCommand('git show HEAD --name-only --format= --pretty=format: 2>&1 | grep -v "^$" | head -10');
+    fileListWithout.split('\n').forEach(file => {
+      if (file.trim()) console.log(`    - ${file.trim()}`);
+    });
+    
+    console.log(`\n  Files WITH --first-parent (first 10):`);
+    const fileListWith = runCommand('git show HEAD --first-parent --name-only --format= --pretty=format: 2>&1 | grep -v "^$" | head -10');
+    fileListWith.split('\n').forEach(file => {
+      if (file.trim()) console.log(`    - ${file.trim()}`);
+    });
+    
+    // Show diff stats comparison
+    console.log(`\n  Diff stats WITHOUT --first-parent:`);
+    const statsWithout = runCommand('git show HEAD --stat 2>&1 | tail -1');
+    console.log(`    ${statsWithout.trim()}`);
+    
+    console.log(`\n  Diff stats WITH --first-parent:`);
+    const statsWith = runCommand('git show HEAD --first-parent --stat 2>&1 | tail -1');
+    console.log(`    ${statsWith.trim()}`);
+  } else {
+    console.log(`\n  Not a merge commit - standard diff behavior applies.`);
+  }
+
   // 7. PR Title (optional - not available by default)
   logSection('PR Title Detection');
   
