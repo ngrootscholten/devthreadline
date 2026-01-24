@@ -184,6 +184,30 @@ export function ChecksTable({ checks, pagination, onPageChange }: ChecksTablePro
     );
   };
 
+  const getReviewContextBadge = (reviewContext: string | null) => {
+    if (!reviewContext) return null;
+    
+    const colors: Record<string, string> = {
+      commit: 'bg-green-500/20 text-green-400 border-green-500/30',
+      pr: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      file: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+      folder: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+      files: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+      local: 'bg-slate-500/20 text-slate-300 border-slate-500/30'
+    };
+    
+    const color = colors[reviewContext] || 'bg-slate-500/20 text-slate-300 border-slate-500/30';
+    
+    // Capitalize first letter for display
+    const displayText = reviewContext.charAt(0).toUpperCase() + reviewContext.slice(1);
+    
+    return (
+      <span className={`px-2 py-1 rounded text-xs font-medium border ${color}`}>
+        {displayText}
+      </span>
+    );
+  };
+
   if (checks.length === 0) {
     return (
       <div className="text-center py-12">
@@ -319,7 +343,13 @@ export function ChecksTable({ checks, pagination, onPageChange }: ChecksTablePro
                     )}
                   </td>
                   <td className="py-3 px-4 text-sm">
-                    {getEnvironmentBadge(check.environment) || <span className="text-slate-500">—</span>}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {getEnvironmentBadge(check.environment)}
+                      {getReviewContextBadge(check.reviewContext)}
+                      {!check.environment && !check.reviewContext && (
+                        <span className="text-slate-500">—</span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3 px-4 text-sm text-slate-300 font-mono">
                     {check.branchName || <span className="text-slate-500">—</span>}
