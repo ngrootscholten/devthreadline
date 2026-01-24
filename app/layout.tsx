@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   description: "AI-powered code quality and convention tool with focused, parallel code checks. Standards that teach themselves.",
 };
 
+
+
 export default function RootLayout({
   children,
 }: Readonly<{

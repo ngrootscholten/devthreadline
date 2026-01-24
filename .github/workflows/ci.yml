@@ -29,7 +29,13 @@ jobs:
       - name: Test GitHub Context (Debug)
         run: npx tsx scripts/test-github-context.ts
       
-      - name: Build (includes threadlines check, linting, tsc, etc.)
+      - name: Threadlines Check (Debug)
+        env:
+          THREADLINE_API_KEY: ${{ secrets.THREADLINE_API_KEY }}
+          THREADLINE_ACCOUNT: ${{ secrets.THREADLINE_ACCOUNT }}
+        run: npx -y threadlines check --debug
+      
+      - name: Build (includes linting, tsc, etc.)
         env:
           THREADLINE_API_KEY: ${{ secrets.THREADLINE_API_KEY }}
           THREADLINE_ACCOUNT: ${{ secrets.THREADLINE_ACCOUNT }}

@@ -9,154 +9,89 @@ export default function DiffDetection() {
           for analysis. Understanding what changes are included helps you know exactly what your threadlines are 
           testing.
         </p>
-        <p className="text-slate-300 mb-4">
-          Each environment has a specific strategy optimized for that platform's capabilities and limitations.
-        </p>
       </section>
 
       <section className="mb-12">
-        <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">GitHub Actions</h2>
+        <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Diff Detection Strategy</h2>
         
         <p className="text-slate-300 mb-4">
-          GitHub Actions provides rich context about PRs and pushes. Threadline handles two scenarios:
+          Threadline uses different git diff strategies depending on the context and clone depth. Understanding these strategies helps you know exactly what changes are being reviewed.
         </p>
 
         <div className="bg-slate-950 border border-slate-800 rounded-lg p-6 mb-4">
-          <h3 className="text-xl font-semibold mb-3 text-slate-200">1. Pull Request Context</h3>
+          <h3 className="text-xl font-semibold mb-3 text-slate-200">Two Dots vs Three Dots</h3>
+          
           <p className="text-slate-300 mb-2">
-            <strong className="text-white">When:</strong> <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">GITHUB_EVENT_NAME="pull_request"</code>
+            <strong className="text-white">Three Dots (<code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">A...B</code>):</strong> Merge-base comparison. Shows only changes from the common ancestor (merge base) to the target commit. This excludes unrelated changes that happened in the base branch after branching.
           </p>
+          <p className="text-slate-300 mb-4 text-sm">
+            <strong className="text-white">Example:</strong> <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">git diff origin/main...HEAD</code> shows only what the developer changed, not changes that happened in main after they branched.
+          </p>
+
           <p className="text-slate-300 mb-2">
-            <strong className="text-white">What's included:</strong> All changes in the PR (target branch vs source branch)
+            <strong className="text-white">Two Dots (<code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">A..B</code>):</strong> Direct comparison. Shows all differences between the two branch tips, including unrelated changes that happened in the base branch after branching (drift).
           </p>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">How:</strong> Compares <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">origin/&#123;GITHUB_BASE_REF&#125;...origin/&#123;GITHUB_HEAD_REF&#125;</code>
-          </p>
-          <p className="text-slate-300">
-            This shows the cumulative changes across all commits in the PR, giving you complete coverage of what's being merged.
+          <p className="text-slate-300 text-sm">
+            <strong className="text-white">Example:</strong> <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">git diff origin/main..HEAD</code> shows all differences, potentially including files the developer didn't touch.
           </p>
         </div>
 
         <div className="bg-slate-950 border border-slate-800 rounded-lg p-6 mb-4">
-          <h3 className="text-xl font-semibold mb-3 text-slate-200">2. Push (No PR)</h3>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">When:</strong> Any push event without a PR (main branch, feature branch, etc.)
+          <h3 className="text-xl font-semibold mb-3 text-slate-200">Clone Depth Impact</h3>
+          
+          <p className="text-slate-300 mb-4">
+            CI environments often use shallow clones (<code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">depth=1</code>) for performance. This affects which diff strategy works:
           </p>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">What's included:</strong> Changes in the last commit only
-          </p>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">How:</strong> Compares <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">HEAD~1...HEAD</code>
-          </p>
-          <p className="text-slate-300">
-            This validates the most recent commit. For full branch-level review, create a PR.
-          </p>
-        </div>
-      </section>
 
-      <section className="mb-12">
-        <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">GitLab CI</h2>
-        
-        <p className="text-slate-300 mb-4">
-          GitLab CI performs shallow clones (only the current branch), so Threadline fetches additional branches on-demand when needed for MR context.
-        </p>
+          <p className="text-slate-300 mb-2">
+            <strong className="text-white">Full Clone or Sufficient Depth:</strong>
+          </p>
+          <ul className="list-disc list-inside text-slate-300 space-y-2 ml-4 mb-4">
+            <li>Three-dot diff works perfectly - shows only developer's changes</li>
+            <li>Merge base can be calculated: <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">git merge-base origin/main HEAD</code></li>
+            <li>This is the preferred strategy for PR/MR reviews</li>
+          </ul>
 
-        <div className="bg-slate-950 border border-slate-800 rounded-lg p-6 mb-4">
-          <h3 className="text-xl font-semibold mb-3 text-slate-200">1. Merge Request Context</h3>
           <p className="text-slate-300 mb-2">
-            <strong className="text-white">When:</strong> <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">CI_MERGE_REQUEST_IID</code> is set
+            <strong className="text-white">Shallow Clone (depth=1):</strong>
           </p>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">What's included:</strong> All changes in the MR (target branch vs source branch)
-          </p>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">How:</strong> Fetches target branch, then compares <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">origin/&#123;CI_MERGE_REQUEST_TARGET_BRANCH_NAME&#125;...origin/&#123;CI_MERGE_REQUEST_SOURCE_BRANCH_NAME&#125;</code>
-          </p>
-          <p className="text-slate-300">
-            The target branch is fetched on-demand since GitLab only clones the source branch by default.
-          </p>
+          <ul className="list-disc list-inside text-slate-300 space-y-2 ml-4 mb-4">
+            <li>Three-dot diff may fail if merge base isn't available locally</li>
+            <li>Threadline falls back to two-dot diff (direct comparison)</li>
+            <li>May include drift from main, but provides working diff instead of crashing</li>
+            <li>A warning is logged when fallback occurs</li>
+          </ul>
+
+          <div className="bg-yellow-900/20 border border-yellow-800 rounded-lg p-4">
+            <p className="text-yellow-200 text-sm">
+              <strong>Note:</strong> Threadline always tries three-dot diff first (merge-base). If it fails due to shallow clone limitations, it automatically falls back to two-dot diff. This ensures checks always run, even if the diff includes some unrelated changes.
+            </p>
+          </div>
         </div>
 
         <div className="bg-slate-950 border border-slate-800 rounded-lg p-6 mb-4">
-          <h3 className="text-xl font-semibold mb-3 text-slate-200">2. Push (No MR)</h3>
+          <h3 className="text-xl font-semibold mb-3 text-slate-200">Context-Specific Strategies</h3>
+          
           <p className="text-slate-300 mb-2">
-            <strong className="text-white">When:</strong> Any push event without an MR (main branch, feature branch, etc.)
+            <strong className="text-white">PR/MR Context:</strong>
           </p>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">What's included:</strong> Changes in the last commit only
-          </p>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">How:</strong> Compares <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">HEAD~1...HEAD</code>
-          </p>
-          <p className="text-slate-300">
-            This validates the most recent commit. For full branch-level review, create a Merge Request.
-          </p>
-        </div>
-      </section>
+          <ol className="list-decimal list-inside text-slate-300 space-y-2 ml-4 mb-4">
+            <li>Fetch target branch: <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">git fetch origin &#123;targetBranch&#125;</code></li>
+            <li>Find merge base: <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">git merge-base origin/&#123;targetBranch&#125; HEAD</code></li>
+            <li>Try three-dot diff: <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">git diff origin/&#123;targetBranch&#125;...HEAD</code></li>
+            <li>If that fails, fallback to two-dot: <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">git diff origin/&#123;targetBranch&#125;..HEAD</code></li>
+          </ol>
 
-      <section className="mb-12">
-        <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Bitbucket Pipelines</h2>
-        
-        <p className="text-slate-300 mb-4">
-          Bitbucket Pipelines performs shallow clones by default. Threadline fetches branches on-demand when needed for PR comparisons.
-        </p>
-
-        <div className="bg-slate-950 border border-slate-800 rounded-lg p-6 mb-4">
-          <h3 className="text-xl font-semibold mb-3 text-slate-200">1. Pull Request Context</h3>
           <p className="text-slate-300 mb-2">
-            <strong className="text-white">When:</strong> <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">BITBUCKET_PR_ID</code> is set
+            <strong className="text-white">Commit/Push Context:</strong>
           </p>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">What's included:</strong> All changes in the PR (target branch vs source branch)
-          </p>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">How:</strong> Fetches destination branch, then compares <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">origin/&#123;BITBUCKET_PR_DESTINATION_BRANCH&#125;...HEAD</code>
-          </p>
-          <p className="text-slate-300">
-            The destination branch is fetched on-demand since Bitbucket only clones the source branch by default.
-          </p>
-        </div>
-
-        <div className="bg-slate-950 border border-slate-800 rounded-lg p-6 mb-4">
-          <h3 className="text-xl font-semibold mb-3 text-slate-200">2. Push (No PR)</h3>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">When:</strong> Any push event without a PR (main branch, feature branch, etc.)
-          </p>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">What's included:</strong> Changes in the last commit only
-          </p>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">How:</strong> Compares <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">HEAD~1...HEAD</code>
-          </p>
-          <p className="text-slate-300">
-            This validates the most recent commit. For full branch-level review, create a Pull Request.
-          </p>
-        </div>
-      </section>
-
-      <section className="mb-12">
-        <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Vercel</h2>
-        
-        <div className="bg-slate-950 border border-slate-800 rounded-lg p-6 mb-4">
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">When:</strong> Vercel build/deployment
-          </p>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">What's included:</strong> Changes in the commit being deployed
-          </p>
-          <p className="text-slate-300 mb-2">
-            <strong className="text-white">How:</strong> Uses <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">git show &#123;VERCEL_GIT_COMMIT_SHA&#125;</code>
-          </p>
-          <p className="text-slate-300">
-            Vercel provides the commit SHA being deployed via <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">VERCEL_GIT_COMMIT_SHA</code>. 
-            Threadline shows the diff for that specific commit, validating what's being deployed.
-          </p>
-        </div>
-
-        <div className="bg-yellow-900/20 border border-yellow-800 rounded-lg p-4 mt-4">
-          <p className="text-yellow-200 text-sm">
-            <strong>Note:</strong> Vercel's CI environment only provides the current commit context, not branch comparisons. 
-            This means you'll see the commit-level changes, not cumulative branch changes.
+          <ol className="list-decimal list-inside text-slate-300 space-y-2 ml-4 mb-2">
+            <li>Extract parent SHA using plumbing: <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">git cat-file -p HEAD</code></li>
+            <li>Fetch parent commit: <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">git fetch origin &#123;parentSha&#125; --depth=1</code></li>
+            <li>Compare using two-dot: <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">git diff &#123;parentSha&#125;..HEAD</code></li>
+          </ol>
+          <p className="text-slate-300 text-sm">
+            Uses plumbing commands to work reliably in shallow clones. Two-dot is appropriate here since we're comparing a commit to its parent.
           </p>
         </div>
       </section>
@@ -165,8 +100,9 @@ export default function DiffDetection() {
         <h2 className="text-2xl font-semibold mt-8 mb-4 text-green-400">Local Development</h2>
         
         <div className="bg-slate-950 border border-slate-800 rounded-lg p-6 mb-4">
+          <h3 className="text-xl font-semibold mb-3 text-slate-200">Default: Staged/Unstaged Changes</h3>
           <p className="text-slate-300 mb-2">
-            <strong className="text-white">When:</strong> Running <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">threadlines check</code> locally
+            <strong className="text-white">When:</strong> Running <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">threadlines check</code> locally without flags
           </p>
           <p className="text-slate-300 mb-2">
             <strong className="text-white">What's included:</strong> Staged changes (if any), otherwise unstaged changes
@@ -183,6 +119,17 @@ export default function DiffDetection() {
             Perfect for catching issues before they reach your CI pipeline.
           </p>
         </div>
+
+        <div className="bg-slate-950 border border-slate-800 rounded-lg p-6 mb-4">
+          <h3 className="text-xl font-semibold mb-3 text-slate-200">Flags for Specific Contexts</h3>
+          
+          <ul className="list-disc list-inside text-slate-300 space-y-2 ml-4">
+            <li><code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">--commit &lt;ref&gt;</code> - Review a specific commit. Extracts parent SHA using <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">git cat-file -p &lt;ref&gt;</code>, fetches parent, then compares <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">git diff &lt;parentSha&gt;..&lt;ref&gt;</code></li>
+            <li><code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">--file &lt;path&gt;</code> - Review entire file (all lines as additions). Creates artificial diff in git diff format. Populates repo name and author from git config.</li>
+            <li><code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">--folder &lt;path&gt;</code> - Review all files in folder recursively. Reads all files in folder and creates combined diff. Populates repo name and author from git config.</li>
+            <li><code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">--files &lt;paths...&gt;</code> - Review multiple specified files. Reads multiple files and creates combined diff. Populates repo name and author from git config.</li>
+          </ul>
+        </div>
       </section>
 
       <section className="mb-12">
@@ -193,9 +140,10 @@ export default function DiffDetection() {
         </p>
 
         <ul className="list-disc list-inside text-slate-300 space-y-2 ml-4 mb-4">
-          <li><strong className="text-white">PR/MR context:</strong> Tests all changes that will be merged, giving you complete coverage of the feature</li>
+          <li><strong className="text-white">PR/MR context:</strong> Tests all changes that will be merged (using merge-base to exclude drift from main), giving you complete coverage of the feature</li>
           <li><strong className="text-white">Push (no PR/MR):</strong> Tests the last commit only - for full branch coverage, create a PR/MR</li>
           <li><strong className="text-white">Local (staged/unstaged):</strong> Tests your work-in-progress, catching issues before commit</li>
+          <li><strong className="text-white">Local flags:</strong> <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">--commit</code>, <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">--file</code>, <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">--folder</code>, <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm">--files</code> provide specific review contexts</li>
         </ul>
 
         <p className="text-slate-300 mb-4">
