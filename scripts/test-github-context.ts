@@ -143,102 +143,6 @@ async function main() {
     console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 
-  // 9. Commit Details (for debugging)
-  logSection('Commit Details');
-  console.log('\n--- What is HEAD actually? ---');
-  try {
-    const commitDetails = runCommand('git log -1 --format="%H%n%P%n%s%n%b" HEAD');
-    const details = commitDetails.split('\n');
-    console.log(`  Full SHA: ${details[0]}`);
-    console.log(`  Parent SHAs: ${details[1] || '(none)'}`);
-    console.log(`  Subject: ${details[2]}`);
-    const parentCount = details[1] ? details[1].split(' ').filter(p => p.trim()).length : 0;
-    console.log(`  Parent count: ${parentCount}`);
-    
-    if (parentCount === 0) {
-      console.log(`  ⚠️  Root commit (no parent)`);
-    } else if (parentCount === 1) {
-      console.log(`  ✅ Regular commit`);
-    } else {
-      console.log(`  ⚠️  Merge commit (${parentCount} parents)`);
-      console.log(`  💡 Merge commits may show combined diff by default`);
-    }
-  } catch (error) {
-    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-
-  // 9.5. Parent SHA Detection (Alternative Methods)
-  logSection('Parent SHA Detection - Alternative Methods');
-  console.log('\n--- Testing different methods to get parent SHA ---');
-  
-  // Method 1: Current CLI approach
-  console.log('\n  Method 1: git show HEAD --format=%P --no-patch (CLI current)');
-  try {
-    const parentSha1 = runCommand('git show HEAD --format=%P --no-patch');
-    if (parentSha1 && parentSha1.length === 40) {
-      console.log(`  ✅ SUCCESS: ${parentSha1}`);
-    } else if (parentSha1.trim() === '') {
-      console.log(`  ❌ EMPTY: No parent returned`);
-    } else {
-      console.log(`  ⚠️  UNEXPECTED: "${parentSha1}" (length: ${parentSha1.length})`);
-    }
-  } catch (error) {
-    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-  
-  // Method 2: git log alternative
-  console.log('\n  Method 2: git log -1 --format=%P HEAD');
-  try {
-    const parentSha2 = runCommand('git log -1 --format=%P HEAD');
-    if (parentSha2 && parentSha2.length === 40) {
-      console.log(`  ✅ SUCCESS: ${parentSha2}`);
-    } else if (parentSha2.trim() === '') {
-      console.log(`  ❌ EMPTY: No parent returned`);
-    } else {
-      console.log(`  ⚠️  UNEXPECTED: "${parentSha2}" (length: ${parentSha2.length})`);
-    }
-  } catch (error) {
-    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-  
-  // Method 3: git rev-parse (might fail if parent not fetched)
-  console.log('\n  Method 3: git rev-parse HEAD^');
-  try {
-    const parentSha3 = runCommand('git rev-parse HEAD^ 2>&1');
-    if (parentSha3 && parentSha3.length === 40 && !parentSha3.includes('fatal:') && !parentSha3.includes('error:')) {
-      console.log(`  ✅ SUCCESS: ${parentSha3}`);
-    } else if (parentSha3.includes('fatal:') || parentSha3.includes('error:')) {
-      console.log(`  ⚠️  FAILED: ${parentSha3.split('\n')[0]}`);
-      console.log(`     (Parent commit not available locally)`);
-    } else {
-      console.log(`  ⚠️  UNEXPECTED: "${parentSha3}"`);
-    }
-  } catch (error) {
-    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-  
-  // Method 4: git cat-file (read commit object directly)
-  console.log('\n  Method 4: git cat-file -p HEAD | grep "^parent"');
-  try {
-    const catFileOutput = runCommand('git cat-file -p HEAD 2>&1');
-    const parentLines = catFileOutput.split('\n').filter(line => line.startsWith('parent '));
-    if (parentLines.length > 0) {
-      const parentShas = parentLines.map(line => line.replace('parent ', '').trim());
-      console.log(`  ✅ SUCCESS: Found ${parentLines.length} parent(s)`);
-      parentShas.forEach((sha, idx) => {
-        console.log(`     Parent ${idx + 1}: ${sha}`);
-      });
-    } else {
-      console.log(`  ❌ EMPTY: No parent lines found in commit object`);
-      console.log(`     (This suggests it's actually a root commit)`);
-      console.log(`     First few lines of commit object:`);
-      catFileOutput.split('\n').slice(0, 5).forEach(line => {
-        console.log(`       ${line}`);
-      });
-    }
-  } catch (error) {
-    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
 
   // 10. Diff Detection (matches CLI: src/git/diff.ts)
   logSection('Diff Detection');
@@ -318,24 +222,39 @@ async function main() {
       console.log(`\n  Step 2: Skipped (no parent to fetch - root commit)`);
     }
     
-    // Step 3: Get diff using git show (matches CLI: getCommitDiff)
-    console.log(`\n  Step 3: Getting diff with git show HEAD...`);
-    try {
-      const diffStats = runCommand('git show HEAD --stat 2>&1 | tail -1');
-      const fileCount = runCommand('git show HEAD --name-only --format= --pretty=format: 2>&1 | grep -v "^$" | wc -l');
-      console.log(`  ✅ Files changed: ${fileCount.trim()}`);
-      console.log(`  ✅ Diff stats: ${diffStats.trim()}`);
-      
-      // Show first 10 files
-      const files = runCommand('git show HEAD --name-only --format= --pretty=format: 2>&1 | grep -v "^$" | head -10');
-      if (files && !files.includes('fatal:') && !files.includes('error:')) {
-        console.log(`\n  First 10 files:`);
-        files.split('\n').forEach(file => {
-          if (file.trim()) console.log(`    - ${file.trim()}`);
-        });
+    // Step 3: Get diff using explicit git diff (plumbing) instead of git show (porcelain)
+    // git show checks .git/shallow and treats HEAD as root even if parent is fetched
+    // git diff is plumbing and doesn't care about shallow files - it just compares trees
+    if (parentSha && parentSha.length === 40) {
+      console.log(`\n  Step 3: Getting diff with git diff ${parentSha.substring(0, 7)}..HEAD (plumbing)...`);
+      try {
+        const diffStats = runCommand(`git diff ${parentSha}..HEAD --stat 2>&1 | tail -1`);
+        const fileCount = runCommand(`git diff ${parentSha}..HEAD --name-only 2>&1 | grep -v "^$" | wc -l`);
+        console.log(`  ✅ Files changed: ${fileCount.trim()}`);
+        console.log(`  ✅ Diff stats: ${diffStats.trim()}`);
+        
+        // Show first 10 files
+        const files = runCommand(`git diff ${parentSha}..HEAD --name-only 2>&1 | grep -v "^$" | head -10`);
+        if (files && !files.includes('fatal:') && !files.includes('error:')) {
+          console.log(`\n  First 10 files:`);
+          files.split('\n').forEach(file => {
+            if (file.trim()) console.log(`    - ${file.trim()}`);
+          });
+        }
+      } catch (error) {
+        console.log(`  ❌ Diff failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-    } catch (error) {
-      console.log(`  ❌ Diff failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } else {
+      console.log(`\n  Step 3: Skipped (no parent - root commit, git show will show all files)`);
+      console.log(`  ⚠️  Root commits show all files as additions (expected behavior)`);
+      try {
+        const diffStats = runCommand('git show HEAD --stat 2>&1 | tail -1');
+        const fileCount = runCommand('git show HEAD --name-only --format= --pretty=format: 2>&1 | grep -v "^$" | wc -l');
+        console.log(`  Files changed (root commit): ${fileCount.trim()}`);
+        console.log(`  Diff stats: ${diffStats.trim()}`);
+      } catch (error) {
+        console.log(`  ⚠️  Could not get diff stats`);
+      }
     }
   }
 
@@ -352,7 +271,7 @@ async function main() {
   if (isPR) {
     console.log(`  ✅ Diff: Fetch origin/${baseRef}, then origin/${baseRef}..HEAD`);
   } else {
-    console.log(`  ✅ Diff: Fetch parent, then git show HEAD`);
+    console.log(`  ✅ Diff: Get parent via git cat-file, fetch parent, then git diff parentSha..HEAD`);
   }
   
   console.log('\n' + '='.repeat(60));
