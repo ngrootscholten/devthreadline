@@ -218,6 +218,21 @@ async function main() {
     console.log(`\n  Diff stats WITH --first-parent:`);
     const statsWith = runCommand('git show HEAD --first-parent --stat 2>&1 | tail -1');
     console.log(`    ${statsWith.trim()}`);
+    
+    // Test NEW approach: git diff HEAD^1..HEAD
+    console.log(`\n--- NEW APPROACH: git diff HEAD^1..HEAD ---`);
+    const filesWithDiff = runCommand('git diff HEAD^1..HEAD --name-only 2>&1 | grep -v "^$" | wc -l');
+    console.log(`  Files changed with git diff HEAD^1..HEAD: ${filesWithDiff.trim()}`);
+    
+    console.log(`\n  Files with git diff HEAD^1..HEAD (first 10):`);
+    const fileListDiff = runCommand('git diff HEAD^1..HEAD --name-only 2>&1 | grep -v "^$" | head -10');
+    fileListDiff.split('\n').forEach(file => {
+      if (file.trim()) console.log(`    - ${file.trim()}`);
+    });
+    
+    console.log(`\n  Diff stats with git diff HEAD^1..HEAD:`);
+    const statsDiff = runCommand('git diff HEAD^1..HEAD --stat 2>&1 | tail -1');
+    console.log(`    ${statsDiff.trim()}`);
   } else {
     console.log(`\n  Not a merge commit - standard diff behavior applies.`);
   }
