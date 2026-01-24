@@ -186,6 +186,15 @@ async function main() {
     console.log(`  💡 Use --first-parent to show only changes relative to base branch`);
   }
   
+  // Add this right after the merge commit detection
+  console.log(`\n--- What is HEAD actually? ---`);
+  const commitDetails = runCommand('git log -1 --format="%H%n%P%n%s%n%b" HEAD 2>&1');
+  const details = commitDetails.split('\n');
+  console.log(`  Full SHA: ${details[0]}`);
+  console.log(`  Parent SHAs: ${details[1] || '(none)'}`);
+  console.log(`  Subject: ${details[2]}`);
+  console.log(`  Parent count: ${details[1] ? details[1].split(' ').filter(p => p.trim()).length : 0}`);
+  
   if (isMerge) {
     console.log(`\n--- Merge Commit Diff Comparison ---`);
     
