@@ -3,22 +3,17 @@
 /**
  * GitHub Actions Context Test Script
  * 
- * This script tests all approaches for getting information needed by the GitHub Actions implementation:
- * - Repository name/URL
- * - Branch name
- * - Commit SHA
- * - Commit author
- * - Commit message
- * - PR title (optional)
- * - Diff (PR vs push)
+ * This script tests the EXACT same approach used by the CLI tool.
+ * It mirrors the implementation in:
+ * - src/git/ci-context.ts (getCIContext)
+ * - src/git/ci-config.ts (GitHub config)
+ * - src/git/diff.ts (shared git commands)
  * 
  * Run from GitHub Actions workflow:
  *   npx tsx scripts/test-github-context.ts
  */
 
 import { execSync } from 'child_process';
-import * as path from 'path';
-import * as fs from 'fs';
 
 function runCommand(cmd: string): string {
   try {
@@ -39,315 +34,242 @@ function logEnvVar(name: string) {
   console.log(`${name.padEnd(30)} = ${value || '(not set)'}`);
 }
 
-function testApproach(name: string, testFn: () => string, expectedFormat?: string) {
-  console.log(`\n--- ${name} ---`);
-  const result = testFn();
-  if (result.includes('ERROR') || result.includes('fatal:') || result.includes('not set')) {
-    console.log(`  ❌ FAILED: ${result}`);
-  } else {
-    console.log(`  ✅ SUCCESS: ${result}`);
-    if (expectedFormat) {
-      console.log(`  Format: ${expectedFormat}`);
-    }
-  }
+function sanitizeRepoUrl(url: string): string {
+  // Same as CLI: Remove embedded credentials (CI tokens) from the URL
+  return url.replace(/^(https?:\/\/)([^@]+@)/, '$1');
 }
 
 async function main() {
-  console.log('\n🔍 GitHub Actions Context Test Script\n');
+  console.log('\n🔍 GitHub Actions Context Test Script (CLI Implementation)\n');
   console.log(`Timestamp: ${new Date().toISOString()}`);
   console.log(`Working Directory: ${process.cwd()}`);
 
-  // 1. Available Environment Variables
-  logSection('Available Environment Variables');
+  // 1. Environment Detection (matches CLI: src/utils/environment.ts)
+  logSection('Environment Detection');
+  const isGitHub = !!process.env.GITHUB_ACTIONS;
+  console.log(`  GITHUB_ACTIONS: ${isGitHub ? '✅ YES' : '❌ NO'}`);
+  if (!isGitHub) {
+    console.log('  ⚠️  Not running in GitHub Actions - some tests may fail');
+  }
+
+  // 2. GitHub-Specific Environment Variables (matches CLI: src/git/ci-config.ts)
+  logSection('GitHub Environment Variables');
   logEnvVar('GITHUB_EVENT_NAME');
   logEnvVar('GITHUB_REF_NAME');
   logEnvVar('GITHUB_BASE_REF');
   logEnvVar('GITHUB_HEAD_REF');
   logEnvVar('GITHUB_SHA');
-  logEnvVar('GITHUB_REF');
   logEnvVar('GITHUB_REPOSITORY');
   logEnvVar('GITHUB_SERVER_URL');
+  logEnvVar('PR_TITLE');
 
   const eventName = process.env.GITHUB_EVENT_NAME;
+  const refName = process.env.GITHUB_REF_NAME;
   const baseRef = process.env.GITHUB_BASE_REF;
-  const headRef = process.env.GITHUB_HEAD_REF;
   const commitSha = process.env.GITHUB_SHA;
 
-  // 2. Repository Name/URL
-  logSection('Repository Name/URL Detection');
-  
-  testApproach(
-    'Method 1: GITHUB_REPOSITORY + GITHUB_SERVER_URL',
-    () => {
-      const repo = process.env.GITHUB_REPOSITORY;
-      const server = process.env.GITHUB_SERVER_URL || 'https://github.com';
-      if (!repo) return 'GITHUB_REPOSITORY not set';
-      return `${server}/${repo}.git`;
-    },
-    'https://github.com/owner/repo.git'
-  );
+  // 3. PR Detection (matches CLI: src/git/ci-config.ts - github.isPullRequest)
+  logSection('PR Detection');
+  const isPR = eventName === 'pull_request';
+  console.log(`  GITHUB_EVENT_NAME === 'pull_request': ${isPR ? '✅ YES' : '❌ NO'}`);
+  console.log(`  Review Context: ${isPR ? 'pr' : 'commit'}`);
 
-  testApproach(
-    'Method 2: git remote get-url origin',
-    () => runCommand('git remote get-url origin 2>&1'),
-    'https://github.com/owner/repo.git or git@github.com:owner/repo.git'
-  );
+  // 4. Repository URL (matches CLI: src/git/diff.ts - getRepoUrl)
+  logSection('Repository URL Detection');
+  console.log('\n--- Method: git remote get-url origin (CLI approach) ---');
+  try {
+    const rawUrl = runCommand('git remote get-url origin');
+    console.log(`  Raw URL: ${rawUrl}`);
+    const sanitizedUrl = sanitizeRepoUrl(rawUrl);
+    console.log(`  ✅ Sanitized URL: ${sanitizedUrl}`);
+    console.log(`  (Credentials removed for security)`);
+  } catch (error) {
+    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 
-  // 3. Branch Name
+  // 5. Branch Name (matches CLI: src/git/ci-config.ts - github.getBranchName)
   logSection('Branch Name Detection');
-  
-  testApproach(
-    'Method 1: GITHUB_REF_NAME (recommended)',
-    () => process.env.GITHUB_REF_NAME || 'not set',
-    'branch-name'
-  );
-
-  testApproach(
-    'Method 2: git rev-parse --abbrev-ref HEAD',
-    () => {
-      const result = runCommand('git rev-parse --abbrev-ref HEAD 2>&1');
-      // In detached HEAD state, this returns "HEAD" which is not useful
-      return result === 'HEAD' ? 'ERROR: Detached HEAD' : result;
-    },
-    'branch-name (fails in detached HEAD)'
-  );
-
-  testApproach(
-    'Method 3: git symbolic-ref --short HEAD',
-    () => runCommand('git symbolic-ref --short HEAD 2>&1'),
-    'branch-name (fails in detached HEAD)'
-  );
-
-  // 4. Commit SHA
-  logSection('Commit SHA Detection');
-  
-  testApproach(
-    'Method 1: GITHUB_SHA (recommended)',
-    () => process.env.GITHUB_SHA || 'not set',
-    'full-commit-sha'
-  );
-
-  testApproach(
-    'Method 2: git rev-parse HEAD',
-    () => runCommand('git rev-parse HEAD 2>&1'),
-    'full-commit-sha'
-  );
-
-  // 5. Commit Author
-  logSection('Commit Author Detection');
-  
-  testApproach(
-    'Method 1: git log -1 --format="%an <%ae>" HEAD (recommended)',
-    () => runCommand('git log -1 --format="%an <%ae>" HEAD 2>&1'),
-    'Name <email@example.com>'
-  );
-
-  testApproach(
-    'Method 2: git log -1 --format="%an <%ae>" <SHA>',
-    () => {
-      if (!commitSha) return 'GITHUB_SHA not set';
-      return runCommand(`git log -1 --format="%an <%ae>" ${commitSha} 2>&1`);
-    },
-    'Name <email@example.com>'
-  );
-
-  // Note: We don't test GITHUB_EVENT_PATH JSON because we've moved away from it
-  // It's unreliable and requires parsing large JSON files
-
-  // 6. Commit Message
-  logSection('Commit Message Detection');
-  
-  testApproach(
-    'Method 1: git log -1 --format="%s" HEAD',
-    () => runCommand('git log -1 --format="%s" HEAD 2>&1'),
-    'First line of commit message'
-  );
-
-  testApproach(
-    'Method 2: git log -1 --format="%B" <SHA>',
-    () => {
-      if (!commitSha) return 'GITHUB_SHA not set';
-      return runCommand(`git log -1 --format="%B" ${commitSha} 2>&1`).split('\n')[0] || 'empty';
-    },
-    'Full commit message'
-  );
-
-  // 6.5. Merge Commit Detection & Diff Behavior
-  logSection('Merge Commit Detection & Diff Behavior');
-  
-  // Check if HEAD is a merge commit
-  const isMergeCheck = runCommand('git rev-parse --verify HEAD^2 2>&1');
-  const isMerge = !isMergeCheck.includes('fatal:') && !isMergeCheck.includes('error:');
-  
-  console.log(`\n--- Is HEAD a merge commit? ---`);
-  console.log(`  ${isMerge ? '✅ YES' : '❌ NO'}`);
-  if (isMerge) {
-    console.log(`  ⚠️  Merge commits show combined diff by default (all changes from merged branch)`);
-    console.log(`  💡 Use --first-parent to show only changes relative to base branch`);
-  }
-  
-  // Add this right after the merge commit detection
-  console.log(`\n--- What is HEAD actually? ---`);
-  const commitDetails = runCommand('git log -1 --format="%H%n%P%n%s%n%b" HEAD 2>&1');
-  const details = commitDetails.split('\n');
-  console.log(`  Full SHA: ${details[0]}`);
-  console.log(`  Parent SHAs: ${details[1] || '(none)'}`);
-  console.log(`  Subject: ${details[2]}`);
-  console.log(`  Parent count: ${details[1] ? details[1].split(' ').filter(p => p.trim()).length : 0}`);
-  
-  if (isMerge) {
-    console.log(`\n--- Merge Commit Diff Comparison ---`);
-    
-    // Show file count WITHOUT --first-parent (combined diff)
-    const filesWithoutFirstParent = runCommand('git show HEAD --name-only --format= --pretty=format: 2>&1 | grep -v "^$" | wc -l');
-    console.log(`\n  Files changed WITHOUT --first-parent: ${filesWithoutFirstParent.trim()}`);
-    
-    // Show file count WITH --first-parent (base branch diff)
-    const filesWithFirstParent = runCommand('git show HEAD --first-parent --name-only --format= --pretty=format: 2>&1 | grep -v "^$" | wc -l');
-    console.log(`  Files changed WITH --first-parent: ${filesWithFirstParent.trim()}`);
-    
-    // Show actual file lists
-    console.log(`\n  Files WITHOUT --first-parent (first 10):`);
-    const fileListWithout = runCommand('git show HEAD --name-only --format= --pretty=format: 2>&1 | grep -v "^$" | head -10');
-    fileListWithout.split('\n').forEach(file => {
-      if (file.trim()) console.log(`    - ${file.trim()}`);
-    });
-    
-    console.log(`\n  Files WITH --first-parent (first 10):`);
-    const fileListWith = runCommand('git show HEAD --first-parent --name-only --format= --pretty=format: 2>&1 | grep -v "^$" | head -10');
-    fileListWith.split('\n').forEach(file => {
-      if (file.trim()) console.log(`    - ${file.trim()}`);
-    });
-    
-    // Show diff stats comparison
-    console.log(`\n  Diff stats WITHOUT --first-parent:`);
-    const statsWithout = runCommand('git show HEAD --stat 2>&1 | tail -1');
-    console.log(`    ${statsWithout.trim()}`);
-    
-    console.log(`\n  Diff stats WITH --first-parent:`);
-    const statsWith = runCommand('git show HEAD --first-parent --stat 2>&1 | tail -1');
-    console.log(`    ${statsWith.trim()}`);
-    
-    // Test NEW approach: git diff HEAD^1..HEAD
-    console.log(`\n--- NEW APPROACH: git diff HEAD^1..HEAD ---`);
-    const filesWithDiff = runCommand('git diff HEAD^1..HEAD --name-only 2>&1 | grep -v "^$" | wc -l');
-    console.log(`  Files changed with git diff HEAD^1..HEAD: ${filesWithDiff.trim()}`);
-    
-    console.log(`\n  Files with git diff HEAD^1..HEAD (first 10):`);
-    const fileListDiff = runCommand('git diff HEAD^1..HEAD --name-only 2>&1 | grep -v "^$" | head -10');
-    fileListDiff.split('\n').forEach(file => {
-      if (file.trim()) console.log(`    - ${file.trim()}`);
-    });
-    
-    console.log(`\n  Diff stats with git diff HEAD^1..HEAD:`);
-    const statsDiff = runCommand('git diff HEAD^1..HEAD --stat 2>&1 | tail -1');
-    console.log(`    ${statsDiff.trim()}`);
+  console.log('\n--- Method: GITHUB_REF_NAME (CLI approach) ---');
+  if (refName) {
+    console.log(`  ✅ Branch: ${refName}`);
   } else {
-    console.log(`\n  Not a merge commit - standard diff behavior applies.`);
+    console.log(`  ❌ FAILED: GITHUB_REF_NAME not set`);
+    console.log(`  This should be automatically provided by GitHub Actions.`);
   }
 
-  // 7. PR Title (optional - not available by default)
-  logSection('PR Title Detection');
-  
-  console.log('\n--- Note: PR Title is NOT available by default in GitHub Actions ---');
-  console.log('  GitHub Actions does not provide PR title as an environment variable.');
-  console.log('  To get PR title, you would need to:');
-  console.log('    1. Parse GITHUB_EVENT_PATH JSON file (not recommended)');
-  console.log('    2. Manually set env var in workflow: PR_TITLE: ${{ github.event.pull_request.title }}');
-  console.log('    3. Use GitHub API (requires token)');
-  console.log('\n  Current implementation: PR title is optional and only used if manually set.');
+  // 6. Commit SHA (matches CLI: src/git/diff.ts - getHeadCommitSha)
+  logSection('Commit SHA Detection');
+  console.log('\n--- Method: git rev-parse HEAD (CLI approach) ---');
+  try {
+    const headSha = runCommand('git rev-parse HEAD');
+    console.log(`  ✅ HEAD SHA: ${headSha}`);
+    if (commitSha && headSha !== commitSha) {
+      console.log(`  ⚠️  WARNING: HEAD SHA (${headSha}) differs from GITHUB_SHA (${commitSha})`);
+    } else if (commitSha) {
+      console.log(`  ✅ Matches GITHUB_SHA: ${commitSha}`);
+    }
+  } catch (error) {
+    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 
-  // 8. Diff Detection
+  // 7. Commit Author (matches CLI: src/git/diff.ts - getCommitAuthor)
+  logSection('Commit Author Detection');
+  console.log('\n--- Method: git log -1 --format="%an <%ae>" HEAD (CLI approach) ---');
+  try {
+    const authorOutput = runCommand('git log -1 --format="%an <%ae>" HEAD');
+    const match = authorOutput.match(/^(.+?)\s*<(.+?)>$/);
+    if (match) {
+      const name = match[1].trim();
+      const email = match[2].trim();
+      console.log(`  ✅ Name: ${name}`);
+      console.log(`  ✅ Email: ${email}`);
+    } else {
+      console.log(`  ❌ FAILED: Could not parse author format`);
+      console.log(`  Output: ${authorOutput}`);
+    }
+  } catch (error) {
+    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
+  // 8. Commit Message (matches CLI: src/git/diff.ts - getCommitMessage)
+  logSection('Commit Message Detection');
+  console.log('\n--- Method: git show HEAD --format=%B --no-patch (CLI approach) ---');
+  try {
+    const message = runCommand('git show HEAD --format=%B --no-patch');
+    const firstLine = message.split('\n')[0];
+    console.log(`  ✅ First line: ${firstLine}`);
+    console.log(`  Full message length: ${message.length} characters`);
+  } catch (error) {
+    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
+  // 9. Commit Details (for debugging)
+  logSection('Commit Details');
+  console.log('\n--- What is HEAD actually? ---');
+  try {
+    const commitDetails = runCommand('git log -1 --format="%H%n%P%n%s%n%b" HEAD');
+    const details = commitDetails.split('\n');
+    console.log(`  Full SHA: ${details[0]}`);
+    console.log(`  Parent SHAs: ${details[1] || '(none)'}`);
+    console.log(`  Subject: ${details[2]}`);
+    const parentCount = details[1] ? details[1].split(' ').filter(p => p.trim()).length : 0;
+    console.log(`  Parent count: ${parentCount}`);
+    
+    if (parentCount === 0) {
+      console.log(`  ⚠️  Root commit (no parent)`);
+    } else if (parentCount === 1) {
+      console.log(`  ✅ Regular commit`);
+    } else {
+      console.log(`  ⚠️  Merge commit (${parentCount} parents)`);
+      console.log(`  💡 Merge commits may show combined diff by default`);
+    }
+  } catch (error) {
+    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
+  // 10. Diff Detection (matches CLI: src/git/diff.ts)
   logSection('Diff Detection');
   
-  if (eventName === 'pull_request' && baseRef) {
-    console.log('\n--- PR Context: Pull Request Diff ---');
+  if (isPR && baseRef) {
+    console.log('\n--- PR Context: Pull Request Diff (CLI approach) ---');
+    console.log(`  Target branch: ${baseRef}`);
     
-    console.log(`\nStep 1: Fetch base branch (required for shallow clones)`);
-    const fetchResult = runCommand(`git fetch origin ${baseRef}:refs/remotes/origin/${baseRef} --depth=1 2>&1`);
-    const fetchSuccess = !fetchResult.includes('ERROR') && !fetchResult.includes('fatal:');
-    console.log(`  ${fetchSuccess ? '✅' : '❌'} Fetch result: ${fetchSuccess ? 'Success' : fetchResult.split('\n')[0]}`);
+    // Step 1: Fetch target branch (matches CLI: getPRDiff)
+    console.log(`\n  Step 1: Fetching target branch origin/${baseRef}...`);
+    try {
+      const fetchResult = runCommand(`git fetch origin ${baseRef}:refs/remotes/origin/${baseRef} --depth=1 2>&1`);
+      if (fetchResult.includes('fatal:') || fetchResult.includes('error:')) {
+        console.log(`  ❌ Fetch failed: ${fetchResult.split('\n')[0]}`);
+      } else {
+        console.log(`  ✅ Fetch successful`);
+      }
+    } catch (error) {
+      console.log(`  ❌ Fetch failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
     
-    if (fetchSuccess) {
-      testApproach(
-        'PR Diff: origin/${baseRef}..HEAD (two dots - direct comparison)',
-        () => {
-          const result = runCommand(`git diff origin/${baseRef}..HEAD --stat 2>&1 | head -10`);
-          return result.includes('fatal:') || result.includes('error:') ? result.split('\n')[0] : 'Success (showing stats)';
-        },
-        'Shows all changes in HEAD not in base branch'
-      );
-
-      testApproach(
-        'PR Diff: origin/${baseRef}...HEAD (three dots - merge base)',
-        () => {
-          const result = runCommand(`git diff origin/${baseRef}...HEAD --stat 2>&1 | head -10`);
-          if (result.includes('no merge base')) {
-            return 'ERROR: no merge base (common in shallow clones)';
-          }
-          return result.includes('fatal:') || result.includes('error:') ? result.split('\n')[0] : 'Success (showing stats)';
-        },
-        'Shows changes since common ancestor (may fail in shallow clones)'
-      );
+    // Step 2: Compare using two dots (matches CLI: getPRDiff)
+    console.log(`\n  Step 2: Comparing origin/${baseRef}..HEAD (two dots)...`);
+    try {
+      const diffStats = runCommand(`git diff origin/${baseRef}..HEAD --stat 2>&1 | tail -1`);
+      const fileCount = runCommand(`git diff origin/${baseRef}..HEAD --name-only 2>&1 | grep -v "^$" | wc -l`);
+      console.log(`  ✅ Files changed: ${fileCount.trim()}`);
+      console.log(`  ✅ Diff stats: ${diffStats.trim()}`);
+      
+      // Show first 10 files
+      const files = runCommand(`git diff origin/${baseRef}..HEAD --name-only 2>&1 | grep -v "^$" | head -10`);
+      if (files && !files.includes('fatal:') && !files.includes('error:')) {
+        console.log(`\n  First 10 files:`);
+        files.split('\n').forEach(file => {
+          if (file.trim()) console.log(`    - ${file.trim()}`);
+        });
+      }
+    } catch (error) {
+      console.log(`  ❌ Diff failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   } else {
-    console.log('\n--- Push Context: Single Commit Diff ---');
+    console.log('\n--- Commit Context: Single Commit Diff (CLI approach) ---');
     
-    testApproach(
-      'Push Diff: git show HEAD (recommended)',
-      () => {
-        const result = runCommand('git show HEAD --stat 2>&1 | head -10');
-        return result.includes('fatal:') || result.includes('error:') ? result.split('\n')[0] : 'Success (showing stats)';
-      },
-      'Shows the commit diff (works with shallow clones)'
-    );
-
-    testApproach(
-      'Push Diff: HEAD~1...HEAD (three dots)',
-      () => {
-        const result = runCommand('git diff HEAD~1...HEAD --stat 2>&1 | head -10');
-        if (result.includes('unknown revision')) {
-          return 'ERROR: HEAD~1 not available (shallow clone with fetch-depth: 1)';
+    // Get parent SHA first (matches CLI: getCommitDiff)
+    console.log(`\n  Step 1: Getting parent commit SHA...`);
+    let parentSha: string;
+    try {
+      parentSha = runCommand('git show HEAD --format=%P --no-patch');
+      console.log(`  ✅ Parent SHA: ${parentSha || '(none - root commit)'}`);
+    } catch (error) {
+      console.log(`  ❌ Failed to get parent SHA: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      parentSha = '';
+    }
+    
+    // Fetch parent if available (matches CLI: getCommitDiff)
+    if (parentSha && parentSha.length === 40) {
+      console.log(`\n  Step 2: Fetching parent commit...`);
+      try {
+        const fetchResult = runCommand(`git fetch origin ${parentSha} --depth=1 2>&1`);
+        if (fetchResult.includes('fatal:') || fetchResult.includes('error:')) {
+          console.log(`  ⚠️  Fetch warning: ${fetchResult.split('\n')[0]}`);
+        } else {
+          console.log(`  ✅ Parent commit available`);
         }
-        return result.includes('fatal:') || result.includes('error:') ? result.split('\n')[0] : 'Success (showing stats)';
-      },
-      'Shows changes since parent commit (fails in shallow clones)'
-    );
-
-    testApproach(
-      'Push Diff: HEAD~1..HEAD (two dots)',
-      () => {
-        const result = runCommand('git diff HEAD~1..HEAD --stat 2>&1 | head -10');
-        if (result.includes('unknown revision')) {
-          return 'ERROR: HEAD~1 not available (shallow clone with fetch-depth: 1)';
-        }
-        return result.includes('fatal:') || result.includes('error:') ? result.split('\n')[0] : 'Success (showing stats)';
-      },
-      'Shows changes between parent and current (fails in shallow clones)'
-    );
+      } catch (error) {
+        console.log(`  ⚠️  Fetch warning: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+    
+    // Step 3: Get diff using git show (matches CLI: getCommitDiff)
+    console.log(`\n  Step 3: Getting diff with git show HEAD...`);
+    try {
+      const diffStats = runCommand('git show HEAD --stat 2>&1 | tail -1');
+      const fileCount = runCommand('git show HEAD --name-only --format= --pretty=format: 2>&1 | grep -v "^$" | wc -l');
+      console.log(`  ✅ Files changed: ${fileCount.trim()}`);
+      console.log(`  ✅ Diff stats: ${diffStats.trim()}`);
+      
+      // Show first 10 files
+      const files = runCommand('git show HEAD --name-only --format= --pretty=format: 2>&1 | grep -v "^$" | head -10');
+      if (files && !files.includes('fatal:') && !files.includes('error:')) {
+        console.log(`\n  First 10 files:`);
+        files.split('\n').forEach(file => {
+          if (file.trim()) console.log(`    - ${file.trim()}`);
+        });
+      }
+    } catch (error) {
+      console.log(`  ❌ Diff failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
-  // 9. Summary
-  logSection('Summary & Current Implementation');
-  
+  // 11. Summary
+  logSection('Summary');
   console.log(`\nEvent Type: ${eventName || 'unknown'}`);
-  console.log(`\nCurrent Implementation Strategy:`);
-  
-  if (eventName === 'pull_request') {
-    console.log(`  ✅ Repository: GITHUB_REPOSITORY + GITHUB_SERVER_URL`);
-    console.log(`  ✅ Branch: GITHUB_REF_NAME`);
-    console.log(`  ✅ Commit SHA: GITHUB_SHA`);
-    console.log(`  ✅ Commit Author: git log -1 --format="%an <%ae>" <SHA>`);
-    console.log(`  ✅ Commit Message: git log -1 --format="%B" <SHA>`);
-    console.log(`  ✅ PR Title: PR_TITLE env var (if set in workflow)`);
-    console.log(`  ✅ Diff: Fetch base branch, then origin/${baseRef}..HEAD (two dots)`);
+  console.log(`Review Context: ${isPR ? 'pr' : 'commit'}`);
+  console.log(`\nCLI Implementation Strategy:`);
+  console.log(`  ✅ Repository: git remote get-url origin (sanitized)`);
+  console.log(`  ✅ Branch: GITHUB_REF_NAME`);
+  console.log(`  ✅ Commit SHA: git rev-parse HEAD`);
+  console.log(`  ✅ Commit Author: git log -1 --format="%an <%ae>" HEAD`);
+  console.log(`  ✅ Commit Message: git show HEAD --format=%B --no-patch`);
+  if (isPR) {
+    console.log(`  ✅ Diff: Fetch origin/${baseRef}, then origin/${baseRef}..HEAD`);
   } else {
-    console.log(`  ✅ Repository: GITHUB_REPOSITORY + GITHUB_SERVER_URL`);
-    console.log(`  ✅ Branch: GITHUB_REF_NAME`);
-    console.log(`  ✅ Commit SHA: GITHUB_SHA`);
-    console.log(`  ✅ Commit Author: git log -1 --format="%an <%ae>" <SHA>`);
-    console.log(`  ✅ Commit Message: git log -1 --format="%B" <SHA>`);
-    console.log(`  ✅ Diff: git show HEAD (works with shallow clones)`);
+    console.log(`  ✅ Diff: Fetch parent, then git show HEAD`);
   }
   
   console.log('\n' + '='.repeat(60));
