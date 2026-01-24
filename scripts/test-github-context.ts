@@ -282,30 +282,40 @@ async function main() {
   } else {
     console.log('\n--- Commit Context: Single Commit Diff (CLI approach) ---');
     
-    // Get parent SHA first (matches CLI: getCommitDiff)
-    console.log(`\n  Step 1: Getting parent commit SHA...`);
-    let parentSha: string;
+    // Get parent SHA first (using git cat-file - matches what actually works)
+    console.log(`\n  Step 1: Getting parent commit SHA using git cat-file...`);
+    let parentSha: string = '';
     try {
-      parentSha = runCommand('git show HEAD --format=%P --no-patch');
-      console.log(`  ✅ Parent SHA: ${parentSha || '(none - root commit)'}`);
+      const catFileOutput = runCommand('git cat-file -p HEAD 2>&1');
+      const parentLines = catFileOutput.split('\n').filter(line => line.startsWith('parent '));
+      if (parentLines.length > 0) {
+        parentSha = parentLines[0].replace('parent ', '').trim();
+        console.log(`  ✅ Parent SHA: ${parentSha}`);
+        if (parentLines.length > 1) {
+          console.log(`  ⚠️  Note: This is a merge commit with ${parentLines.length} parents`);
+        }
+      } else {
+        console.log(`  ⚠️  No parent found (root commit)`);
+      }
     } catch (error) {
       console.log(`  ❌ Failed to get parent SHA: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      parentSha = '';
     }
     
     // Fetch parent if available (matches CLI: getCommitDiff)
     if (parentSha && parentSha.length === 40) {
-      console.log(`\n  Step 2: Fetching parent commit...`);
+      console.log(`\n  Step 2: Fetching parent commit ${parentSha.substring(0, 7)}...`);
       try {
         const fetchResult = runCommand(`git fetch origin ${parentSha} --depth=1 2>&1`);
         if (fetchResult.includes('fatal:') || fetchResult.includes('error:')) {
           console.log(`  ⚠️  Fetch warning: ${fetchResult.split('\n')[0]}`);
         } else {
-          console.log(`  ✅ Parent commit available`);
+          console.log(`  ✅ Parent commit fetched and available`);
         }
       } catch (error) {
         console.log(`  ⚠️  Fetch warning: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
+    } else if (!parentSha) {
+      console.log(`\n  Step 2: Skipped (no parent to fetch - root commit)`);
     }
     
     // Step 3: Get diff using git show (matches CLI: getCommitDiff)
