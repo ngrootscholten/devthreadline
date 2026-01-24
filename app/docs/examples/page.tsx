@@ -80,7 +80,8 @@ context_files: []
 
 # React Component Over-Abstraction
 
-Over-emphasizing "reusability" often leads to "prop soup": components overloaded with props to handle every possible variation. This creates abstractions that become difficult to maintain and modify.
+Over-emphasizing "reusability" often leads to "prop soup": components overloaded with props to handle every possible 
+variation. This creates abstractions that become difficult to maintain and modify.
 
 ## Guidelines
 
