@@ -167,6 +167,79 @@ async function main() {
     console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 
+  // 9.5. Parent SHA Detection (Alternative Methods)
+  logSection('Parent SHA Detection - Alternative Methods');
+  console.log('\n--- Testing different methods to get parent SHA ---');
+  
+  // Method 1: Current CLI approach
+  console.log('\n  Method 1: git show HEAD --format=%P --no-patch (CLI current)');
+  try {
+    const parentSha1 = runCommand('git show HEAD --format=%P --no-patch');
+    if (parentSha1 && parentSha1.length === 40) {
+      console.log(`  ✅ SUCCESS: ${parentSha1}`);
+    } else if (parentSha1.trim() === '') {
+      console.log(`  ❌ EMPTY: No parent returned`);
+    } else {
+      console.log(`  ⚠️  UNEXPECTED: "${parentSha1}" (length: ${parentSha1.length})`);
+    }
+  } catch (error) {
+    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+  
+  // Method 2: git log alternative
+  console.log('\n  Method 2: git log -1 --format=%P HEAD');
+  try {
+    const parentSha2 = runCommand('git log -1 --format=%P HEAD');
+    if (parentSha2 && parentSha2.length === 40) {
+      console.log(`  ✅ SUCCESS: ${parentSha2}`);
+    } else if (parentSha2.trim() === '') {
+      console.log(`  ❌ EMPTY: No parent returned`);
+    } else {
+      console.log(`  ⚠️  UNEXPECTED: "${parentSha2}" (length: ${parentSha2.length})`);
+    }
+  } catch (error) {
+    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+  
+  // Method 3: git rev-parse (might fail if parent not fetched)
+  console.log('\n  Method 3: git rev-parse HEAD^');
+  try {
+    const parentSha3 = runCommand('git rev-parse HEAD^ 2>&1');
+    if (parentSha3 && parentSha3.length === 40 && !parentSha3.includes('fatal:') && !parentSha3.includes('error:')) {
+      console.log(`  ✅ SUCCESS: ${parentSha3}`);
+    } else if (parentSha3.includes('fatal:') || parentSha3.includes('error:')) {
+      console.log(`  ⚠️  FAILED: ${parentSha3.split('\n')[0]}`);
+      console.log(`     (Parent commit not available locally)`);
+    } else {
+      console.log(`  ⚠️  UNEXPECTED: "${parentSha3}"`);
+    }
+  } catch (error) {
+    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+  
+  // Method 4: git cat-file (read commit object directly)
+  console.log('\n  Method 4: git cat-file -p HEAD | grep "^parent"');
+  try {
+    const catFileOutput = runCommand('git cat-file -p HEAD 2>&1');
+    const parentLines = catFileOutput.split('\n').filter(line => line.startsWith('parent '));
+    if (parentLines.length > 0) {
+      const parentShas = parentLines.map(line => line.replace('parent ', '').trim());
+      console.log(`  ✅ SUCCESS: Found ${parentLines.length} parent(s)`);
+      parentShas.forEach((sha, idx) => {
+        console.log(`     Parent ${idx + 1}: ${sha}`);
+      });
+    } else {
+      console.log(`  ❌ EMPTY: No parent lines found in commit object`);
+      console.log(`     (This suggests it's actually a root commit)`);
+      console.log(`     First few lines of commit object:`);
+      catFileOutput.split('\n').slice(0, 5).forEach(line => {
+        console.log(`       ${line}`);
+      });
+    }
+  } catch (error) {
+    console.log(`  ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
   // 10. Diff Detection (matches CLI: src/git/diff.ts)
   logSection('Diff Detection');
   
