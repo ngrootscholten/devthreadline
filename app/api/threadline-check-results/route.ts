@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processThreadlines } from '@/app/lib/processors/expert';
 import { getPool } from '@/app/lib/db';
 import { storeCheckAndMetrics } from '../../lib/audit/store-check-and-metrics';
+import { ProcessThreadlinesResponse } from '../../lib/processors/expert';
+import { ExpertResult } from '../../lib/types/result';
+import { ProcessThreadlineResult } from '../../lib/processors/single-expert';
 import { countLinesInDiff, calculateContextStats } from '../../lib/utils/diff-stats';
 
-export interface ReviewRequest {
+/**
+ * Sync endpoint for CLI-processed results.
+ * Accepts pre-processed threadline check results and stores them.
+ * Used when CLI processes LLM calls locally and wants to sync results to web app.
+ */
+
+// Request interface: ReviewRequest + results + metadata
+export interface SyncResultsRequest {
+  // Same fields as ReviewRequest
   threadlines: Array<{
     id: string;
     version: string;
@@ -16,27 +26,36 @@ export interface ReviewRequest {
   }>;
   diff: string;
   files: string[];
-  apiKey: string; // Client's Threadline API key for authentication
-  account: string;        // REQUIRED: Account identifier
-  repoName?: string;     // Raw git remote URL (e.g., "https://github.com/user/repo.git")
-  branchName?: string;   // Branch name (e.g., "feature/x")
-  commitSha?: string;    // Commit SHA (when commit context available)
-  commitMessage?: string; // Commit message (when commit context available)
-  commitAuthorName?: string; // Commit author name
-  commitAuthorEmail?: string; // Commit author email
-  prTitle?: string;      // PR/MR title (when GitLab MR context available)
-  environment?: string;  // Environment where check was run: 'vercel', 'github', 'gitlab', 'local'
-  cliVersion?: string;  // CLI version that ran this check
-  reviewContext: 'local' | 'commit' | 'pr' | 'file' | 'folder' | 'files'; // REQUIRED: Context type - 'local', 'commit', 'pr' (CI), or 'file', 'folder', 'files' (local only)
+  apiKey: string;
+  account: string;
+  repoName?: string;
+  branchName?: string;
+  commitSha?: string;
+  commitMessage?: string;
+  commitAuthorName?: string;
+  commitAuthorEmail?: string;
+  prTitle?: string;
+  environment?: string;
+  cliVersion?: string;
+  reviewContext: 'local' | 'commit' | 'pr' | 'file' | 'folder' | 'files';
+  
+  // Pre-processed results from CLI
+  results: (ExpertResult | ProcessThreadlineResult)[];
+  metadata: {
+    totalThreadlines: number;
+    completed: number;
+    timedOut: number;
+    errors: number;
+    llmModel?: string;
+  };
 }
 
 
 export async function POST(req: NextRequest) {
-  // Start timing for entire check (including DB insertion, but not telemetry logging)
   const checkStartedAt = new Date().toISOString();
   
   try {
-    const request: ReviewRequest = await req.json();
+    const request: SyncResultsRequest = await req.json();
 
     // Calculate audit statistics
     const diffStats = countLinesInDiff(request.diff);
@@ -44,7 +63,7 @@ export async function POST(req: NextRequest) {
     const contextStats = calculateContextStats(request.threadlines);
     
     // Audit logging
-    console.log(`📥 Received request: POST /api/threadline-check`);
+    console.log(`📥 Received request: POST /api/threadline-check-results (sync)`);
     if (request.environment) {
       console.log(`   Environment: ${request.environment}`);
     }
@@ -56,7 +75,6 @@ export async function POST(req: NextRequest) {
     console.log(`     - Total lines changed: ${diffStats.total}`);
     console.log(`   Changed Files Sent:`);
     console.log(`     - Count: ${changedFilesCount}`);
-    // Calculate total lines in changed files (approximate from diff)
     const changedFilesTotalLines = request.files.length > 0 ? diffStats.total : 0;
     console.log(`     - Total lines (from diff): ${changedFilesTotalLines}`);
     console.log(`   Context Files:`);
@@ -66,6 +84,7 @@ export async function POST(req: NextRequest) {
       console.log(`     - Files: ${contextStats.files.map(f => `${f.path} (${f.lines} lines)`).join(', ')}`);
     }
     console.log(`   Threadlines: ${request.threadlines?.length || 0}`);
+    console.log(`   Results: ${request.results?.length || 0}`);
     if (request.account) {
       console.log(`   Account: ${request.account}`);
     }
@@ -84,17 +103,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate that all threadlines have filePath (required for new schema)
+    // Validate that all threadlines have filePath
     for (const threadline of request.threadlines) {
       if (!threadline.filePath || typeof threadline.filePath !== 'string' || threadline.filePath.trim() === '') {
         return NextResponse.json(
-          { error: `Missing required field 'filePath' for threadline '${threadline.id}'. Please update your Threadline CLI to the latest version.` },
+          { error: `Missing required field 'filePath' for threadline '${threadline.id}'.` },
           { status: 400 }
         );
       }
     }
 
-    // Allow empty diff (no code changes) - this is valid
+    // Validate diff
     if (request.diff === undefined || request.diff === null || typeof request.diff !== 'string') {
       return NextResponse.json(
         { error: 'diff must be a string (empty string is allowed for no changes)' },
@@ -102,7 +121,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate reviewContext - must be one of the allowed values
+    // Validate reviewContext
     const allowedReviewContexts = ['local', 'commit', 'pr', 'file', 'folder', 'files'] as const;
     if (!request.reviewContext || !allowedReviewContexts.includes(request.reviewContext)) {
       return NextResponse.json(
@@ -115,26 +134,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Handle zero diffs - return success with all threadlines marked as not_relevant
-    // No LLM calls are made in this case - early return before processThreadlines()
-    if (request.diff.trim() === '') {
-      console.log('   ℹ️  No code changes detected (empty diff) - returning not_relevant for all threadlines');
-      return NextResponse.json({
-        results: request.threadlines.map(t => ({
-          expertId: t.id,
-          status: 'not_relevant' as const,
-          reasoning: 'No code changes detected'
-        })),
-        metadata: {
-          totalThreadlines: request.threadlines.length,
-          completed: request.threadlines.length,
-          timedOut: 0,
-          errors: 0
-        },
-        message: 'No code changes detected. Diff contains zero lines added or removed.'
-      });
-    }
-
+    // Validate files array
     if (!request.files || !Array.isArray(request.files)) {
       return NextResponse.json(
         { error: 'files array is required' },
@@ -142,7 +142,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate client's Threadline API key
+    // Validate results (required for sync endpoint)
+    if (!request.results || !Array.isArray(request.results)) {
+      return NextResponse.json(
+        { error: 'results array is required for sync endpoint' },
+        { status: 400 }
+      );
+    }
+
+    // Validate metadata (required for sync endpoint)
+    if (!request.metadata || typeof request.metadata !== 'object') {
+      return NextResponse.json(
+        { error: 'metadata object is required for sync endpoint' },
+        { status: 400 }
+      );
+    }
+
+    // Validate results count matches threadlines
+    if (request.results.length !== request.threadlines.length) {
+      return NextResponse.json(
+        { error: `results count (${request.results.length}) must match threadlines count (${request.threadlines.length})` },
+        { status: 400 }
+      );
+    }
+
+    // Validate API key
     if (!request.apiKey || typeof request.apiKey !== 'string') {
       return NextResponse.json(
         { error: 'apiKey is required in request body' },
@@ -150,7 +174,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate account (required)
+    // Validate account
     if (!request.account || typeof request.account !== 'string') {
       return NextResponse.json(
         { error: 'account is required in request body' },
@@ -158,8 +182,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Authentication: Account-level authentication
-    // Look up account by identifier (email) and verify API key
+    // Authentication (same as /api/threadline-check)
     const serverApiKey = process.env.THREADLINE_API_KEY;
     const serverAccount = process.env.THREADLINE_ACCOUNT;
     
@@ -167,7 +190,7 @@ export async function POST(req: NextRequest) {
     let userId: string | undefined = undefined;
     let accountId: string | undefined = undefined;
     
-    // Try database first - account-level authentication
+    // Try database first
     try {
       const pool = getPool();
       const accountResult = await pool.query(
@@ -178,12 +201,10 @@ export async function POST(req: NextRequest) {
       if (accountResult.rows.length > 0) {
         const storedApiKey = accountResult.rows[0].api_key;
         
-        // Compare plaintext API keys
         if (storedApiKey && request.apiKey === storedApiKey) {
           isAuthenticated = true;
           accountId = accountResult.rows[0].id;
           
-          // Find user for userId tracking (optional - get first user for this account)
           const userResult = await pool.query(
             `SELECT id FROM users WHERE account_id = $1 LIMIT 1`,
             [accountId]
@@ -198,13 +219,11 @@ export async function POST(req: NextRequest) {
       }
     } catch (dbError: any) {
       console.error('Database authentication error:', dbError);
-      // Don't fail here - we'll return 401 below
     }
     
-    // Fall back to environment variables (backward compatibility for legacy setups)
+    // Fall back to environment variables
     if (!isAuthenticated && serverApiKey && serverAccount) {
       if (request.apiKey === serverApiKey && request.account === serverAccount) {
-        // For env var auth, try to find account by identifier
         try {
           const pool = getPool();
           const accountResult = await pool.query(
@@ -215,11 +234,10 @@ export async function POST(req: NextRequest) {
             accountId = accountResult.rows[0].id;
           }
         } catch (err) {
-          // Ignore - accountId remains undefined
+          // Ignore
         }
         isAuthenticated = true;
         console.log('   ✓ Authenticated via environment variables (backward compatibility)');
-        // Note: userId remains undefined for legacy env var auth
       }
     }
     
@@ -230,23 +248,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get OpenAI API key from server environment (server pays for OpenAI)
-    const openaiApiKey = process.env.OPENAI_API_KEY;
-    if (!openaiApiKey) {
-      return NextResponse.json(
-        { error: 'Server configuration error: OPENAI_API_KEY not set' },
-        { status: 500 }
-      );
-    }
+    // Build ProcessThreadlinesResponse from request
+    const result: ProcessThreadlinesResponse = {
+      results: request.results,
+      metadata: request.metadata
+    };
 
-    // Process threadlines (use server's OpenAI API key)
-    const result = await processThreadlines({ ...request, apiKey: openaiApiKey });
+    console.log(`✅ Syncing: ${result.results.length} results, ${result.metadata.completed} completed, ${result.metadata.timedOut} timed out, ${result.metadata.errors} errors`);
 
-    console.log(`✅ Processed: ${result.results.length} results, ${result.metadata.completed} completed, ${result.metadata.timedOut} timed out, ${result.metadata.errors} errors`);
-
-    // Store check and log metrics (non-blocking - don't fail request if this fails)
+    // Store check and log metrics
+    let checkId: string | null = null;
     if (accountId) {
-      await storeCheckAndMetrics({
+      checkId = await storeCheckAndMetrics({
         request,
         result,
         diffStats,
@@ -263,13 +276,16 @@ export async function POST(req: NextRequest) {
       console.error('⚠️  Account ID not available - skipping check storage');
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json({ 
+      success: true, 
+      checkId,
+      message: 'Results synced successfully'
+    });
   } catch (error: any) {
-    console.error('❌ ERROR processing threadline-check:');
+    console.error('❌ ERROR processing threadline-check-results:');
     console.error('Message:', error?.message);
     console.error('Name:', error?.name);
     console.error('Stack:', error?.stack);
-    console.error('Full error:', error);
     return NextResponse.json(
       {
         error: error?.message || 'Internal server error',
@@ -280,4 +296,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
