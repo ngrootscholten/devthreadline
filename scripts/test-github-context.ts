@@ -148,40 +148,118 @@ async function main() {
   logSection('Diff Detection');
   
   if (isPR && baseRef) {
-    console.log('\n--- PR Context: Pull Request Diff (CLI approach) ---');
+    console.log('\n--- PR Context: Pull Request Diff (CLI approach - merge-base) ---');
     console.log(`  Target branch: ${baseRef}`);
     
     // Step 1: Fetch target branch (matches CLI: getPRDiff)
     console.log(`\n  Step 1: Fetching target branch origin/${baseRef}...`);
+    let fetchSuccess = false;
     try {
       const fetchResult = runCommand(`git fetch origin ${baseRef}:refs/remotes/origin/${baseRef} --depth=1 2>&1`);
       if (fetchResult.includes('fatal:') || fetchResult.includes('error:')) {
         console.log(`  ❌ Fetch failed: ${fetchResult.split('\n')[0]}`);
+        console.log(`  ⚠️  This matches the CLI error: Failed to fetch target branch origin/${baseRef}`);
       } else {
         console.log(`  ✅ Fetch successful`);
+        fetchSuccess = true;
       }
     } catch (error) {
-      console.log(`  ❌ Fetch failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.log(`  ❌ Fetch failed: ${errorMsg}`);
+      console.log(`  ⚠️  This matches the CLI error: Failed to fetch target branch origin/${baseRef}`);
     }
     
-    // Step 2: Compare using two dots (matches CLI: getPRDiff)
-    console.log(`\n  Step 2: Comparing origin/${baseRef}..HEAD (two dots)...`);
+    if (!fetchSuccess) {
+      console.log(`\n  ⚠️  Cannot continue without target branch - exiting diff test`);
+      return;
+    }
+    
+    // Step 2: Find merge base (matches CLI: getPRDiff - three dots logic)
+    console.log(`\n  Step 2: Finding merge base (git merge-base origin/${baseRef} HEAD)...`);
+    let mergeBase: string = '';
+    let mergeBaseSuccess = false;
     try {
-      const diffStats = runCommand(`git diff origin/${baseRef}..HEAD --stat 2>&1 | tail -1`);
-      const fileCount = runCommand(`git diff origin/${baseRef}..HEAD --name-only 2>&1 | grep -v "^$" | wc -l`);
-      console.log(`  ✅ Files changed: ${fileCount.trim()}`);
-      console.log(`  ✅ Diff stats: ${diffStats.trim()}`);
-      
-      // Show first 10 files
-      const files = runCommand(`git diff origin/${baseRef}..HEAD --name-only 2>&1 | grep -v "^$" | head -10`);
-      if (files && !files.includes('fatal:') && !files.includes('error:')) {
-        console.log(`\n  First 10 files:`);
-        files.split('\n').forEach(file => {
-          if (file.trim()) console.log(`    - ${file.trim()}`);
-        });
+      const mergeBaseOutput = runCommand(`git merge-base origin/${baseRef} HEAD 2>&1`);
+      if (mergeBaseOutput.includes('fatal:') || mergeBaseOutput.includes('error:') || mergeBaseOutput.includes('ERROR:')) {
+        console.log(`  ❌ git merge-base failed: ${mergeBaseOutput.split('\n')[0]}`);
+        console.log(`  ⚠️  This matches the CLI error: Failed to find merge base between origin/${baseRef} and HEAD`);
+      } else {
+        mergeBase = mergeBaseOutput.trim();
+        
+        if (!mergeBase || mergeBase.length !== 40) {
+          console.log(`  ❌ Invalid merge base SHA: "${mergeBase}" (expected 40 characters)`);
+          console.log(`  ⚠️  This matches the CLI error: Invalid merge base SHA`);
+        } else {
+          console.log(`  ✅ Merge base SHA: ${mergeBase}`);
+          mergeBaseSuccess = true;
+        }
       }
     } catch (error) {
-      console.log(`  ❌ Diff failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.log(`  ❌ Failed to find merge base: ${errorMsg}`);
+      console.log(`  ⚠️  This matches the CLI error: Failed to find merge base between origin/${baseRef} and HEAD`);
+    }
+    
+    if (!mergeBaseSuccess) {
+      console.log(`\n  Debugging info (CLI would throw error here):`);
+      console.log(`    - Checking if origin/${baseRef} exists:`);
+      const checkRef = runCommand(`git rev-parse --verify origin/${baseRef} 2>&1`);
+      console.log(`      ${checkRef.includes('fatal:') ? '❌ NOT FOUND' : '✅ EXISTS'}: ${checkRef.substring(0, 40)}`);
+      console.log(`    - Checking HEAD:`);
+      const headSha = runCommand(`git rev-parse HEAD 2>&1`);
+      console.log(`      HEAD SHA: ${headSha.substring(0, 40)}`);
+      console.log(`    - Checking if they share history:`);
+      try {
+        const mergeBaseCheck = runCommand(`git merge-base --is-ancestor origin/${baseRef} HEAD 2>&1`);
+        console.log(`      Is origin/${baseRef} ancestor of HEAD? (exit code 0 = yes)`);
+      } catch {
+        console.log(`      Cannot determine ancestry (command failed)`);
+      }
+      return;
+    }
+    
+    // Step 3: Fetch merge base (matches CLI: getPRDiff)
+    console.log(`\n  Step 3: Fetching merge base commit ${mergeBase.substring(0, 7)}...`);
+    try {
+      const fetchMergeBaseResult = runCommand(`git fetch origin ${mergeBase} --depth=1 2>&1`);
+      if (fetchMergeBaseResult.includes('fatal:') || fetchMergeBaseResult.includes('error:')) {
+        console.log(`  ⚠️  Fetch warning: ${fetchMergeBaseResult.split('\n')[0]}`);
+        console.log(`  ⚠️  This matches the CLI error: Failed to fetch merge base ${mergeBase}`);
+      } else {
+        console.log(`  ✅ Merge base fetched`);
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.log(`  ⚠️  Fetch warning: ${errorMsg}`);
+      console.log(`  ⚠️  This matches the CLI error: Failed to fetch merge base ${mergeBase}`);
+    }
+    
+    // Step 4: Get diff using merge base (matches CLI: getPRDiff - three dots logic)
+    console.log(`\n  Step 4: Comparing ${mergeBase.substring(0, 7)}..HEAD (merge base vs PR branch)...`);
+    try {
+      const diffStats = runCommand(`git diff ${mergeBase}..HEAD --stat 2>&1 | tail -1`);
+      const fileCount = runCommand(`git diff ${mergeBase}..HEAD --name-only 2>&1 | grep -v "^$" | wc -l`);
+      
+      if (diffStats.includes('fatal:') || diffStats.includes('error:') || fileCount.includes('fatal:') || fileCount.includes('error:')) {
+        console.log(`  ❌ git diff failed: ${diffStats.includes('fatal:') ? diffStats : fileCount}`);
+        console.log(`  ⚠️  This matches the CLI error: Failed to get diff for merge base ${mergeBase}..HEAD`);
+      } else {
+        console.log(`  ✅ Files changed: ${fileCount.trim()}`);
+        console.log(`  ✅ Diff stats: ${diffStats.trim()}`);
+        
+        // Show first 10 files
+        const files = runCommand(`git diff ${mergeBase}..HEAD --name-only 2>&1 | grep -v "^$" | head -10`);
+        if (files && !files.includes('fatal:') && !files.includes('error:')) {
+          console.log(`\n  First 10 files:`);
+          files.split('\n').forEach(file => {
+            if (file.trim()) console.log(`    - ${file.trim()}`);
+          });
+        }
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.log(`  ❌ Diff failed: ${errorMsg}`);
+      console.log(`  ⚠️  This matches the CLI error: Failed to get diff for merge base ${mergeBase}..HEAD`);
     }
   } else {
     console.log('\n--- Commit Context: Single Commit Diff (CLI approach) ---');
@@ -269,7 +347,7 @@ async function main() {
   console.log(`  ✅ Commit Author: git log -1 --format="%an <%ae>" HEAD`);
   console.log(`  ✅ Commit Message: git show HEAD --format=%B --no-patch`);
   if (isPR) {
-    console.log(`  ✅ Diff: Fetch origin/${baseRef}, then origin/${baseRef}..HEAD`);
+    console.log(`  ✅ Diff: Fetch origin/${baseRef}, find merge-base, fetch merge-base, then git diff mergeBase..HEAD`);
   } else {
     console.log(`  ✅ Diff: Get parent via git cat-file, fetch parent, then git diff parentSha..HEAD`);
   }
