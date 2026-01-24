@@ -11,7 +11,9 @@ build:
     - npm ci --no-workspaces
     # Debug script - can be removed once GitLab integration is stable
     - npx tsx scripts/test-gitlab-context.ts
-    # Main build - threadlines check, linting, tsc, etc.
+    # Threadlines check with debug
+    - npx -y threadlines check --debug
+    # Main build - linting, tsc, etc.
     - npm run build
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
