@@ -33,11 +33,13 @@ jobs:
         env:
           THREADLINE_API_KEY: ${{ secrets.THREADLINE_API_KEY }}
           THREADLINE_ACCOUNT: ${{ secrets.THREADLINE_ACCOUNT }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: npx -y threadlines check --debug
       
       - name: Build (includes linting, tsc, etc.)
         env:
           THREADLINE_API_KEY: ${{ secrets.THREADLINE_API_KEY }}
           THREADLINE_ACCOUNT: ${{ secrets.THREADLINE_ACCOUNT }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: npm run build
 
