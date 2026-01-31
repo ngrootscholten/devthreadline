@@ -15,6 +15,7 @@ Threadline helps teams maintain consistent code quality by:
 
 ## Getting Started
 
+
 1. **Run the check**
    ```bash
    npx --yes threadlines check
