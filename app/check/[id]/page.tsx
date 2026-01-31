@@ -17,6 +17,7 @@ interface CheckSummary {
   environment: string | null;
   llmModel: string | null;
   cliVersion: string | null;
+  fullDiff: string | null;
   diffStats: {
     added: number;
     removed: number;
@@ -450,6 +451,24 @@ export default function CheckDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Full Diff Section */}
+          {check.fullDiff && (
+            <details className="group mb-4">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-400 mb-2 hover:text-slate-300 transition-colors">
+                Full Diff
+              </summary>
+              <div className="mt-2 bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
+                {check.fullDiff && check.fullDiff.trim() ? (
+                  <DiffViewer diff={check.fullDiff} />
+                ) : (
+                  <div className="p-6 text-center">
+                    <p className="text-slate-400 text-sm">No diff content available</p>
+                  </div>
+                )}
+              </div>
+            </details>
+          )}
 
           {/* Threadlines List */}
           <div className="space-y-4">

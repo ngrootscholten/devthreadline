@@ -67,6 +67,16 @@ export async function GET(
 
     const check = checkResult.rows[0];
 
+    // Get full diff content from check_diffs table
+    const diffResult = await pool.query(
+      `SELECT diff_content 
+       FROM check_diffs 
+       WHERE check_id = $1`,
+      [checkId]
+    );
+
+    const fullDiff = diffResult.rows.length > 0 ? diffResult.rows[0].diff_content : null;
+
     // Get lightweight threadlines list (no content, no diff, no context files)
     const threadlinesResult = await pool.query(
       `SELECT 
@@ -112,6 +122,7 @@ export async function GET(
         environment: check.environment,
         llmModel: check.llm_model,
         cliVersion: check.cli_version,
+        fullDiff: fullDiff,
         diffStats: {
           added: check.diff_lines_added,
           removed: check.diff_lines_removed,
