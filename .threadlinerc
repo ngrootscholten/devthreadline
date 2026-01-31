@@ -1,6 +1,6 @@
 {
   "mode": "online",
-  "api_url": "http://localhost:3000",
+  "api_url": "https://devthreadline.com",
   "openai_model": "gpt-5.2",
   "openai_service_tier": "Flex",
   "diff_context_lines": 10
